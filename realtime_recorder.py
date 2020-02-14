@@ -28,9 +28,9 @@ class RealsenseRecorder(object):
                  max_depth_in_meters=1.0, result_type='pcd'):
         super(RealsenseRecorder, self).__init__()
         self.end = end
+        self.voxel_size = 0.002
         self.prev_cloud = None
         self.cloud_base = None
-        self.pose_graph = None
         self.camera_intrinsic = None
         self.result_type = result_type
 
@@ -44,13 +44,21 @@ class RealsenseRecorder(object):
 
         self._init_camera()
 
-    def create_rgbd_image(self, color_image, depth_image, convert_rgb_to_intensity):
+    def create_pcd_from_color_and_depth(self, color_image, depth_image):
         rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(
-            o3d.geometry.Image(color_image),
-            o3d.geometry.Image(depth_image),
+            color_image, depth_image,
             depth_trunc=self.max_depth_in_meters,
-            convert_rgb_to_intensity=convert_rgb_to_intensity)
-        return rgbd_image
+            convert_rgb_to_intensity=False
+        )
+        volume = o3d.integration.ScalableTSDFVolume(
+            voxel_length=self.voxel_size,
+            sdf_trunc=0.04,
+            color_type=o3d.integration.TSDFVolumeColorType.RGB8
+        )
+        volume.integrate(rgbd_image, self.camera_intrinsic, np.linalg.inv(np.identity(4)))
+        
+        pcd = volume.extract_point_cloud()
+        return pcd
 
     def read_rgbd_image(self, color_file, depth_file):
         color_image = o3d.io.read_image(color_file)
@@ -62,16 +70,10 @@ class RealsenseRecorder(object):
         )
         return rgbd_image
 
-    def register_one_rgbd_pair(source_rgbd_image, target_rgbd_image):
-        option = o3d.odometry.OdometryOption()
-        option.max_depth_diff = 0.07
-        odo_init = np.identity(4)
-        [success, trans, info] = o3d.odometry.compute_rgbd_odometry(
-            source_rgbd_image, target_rgbd_image, self.camera_intrinsic, odo_init,
-            o3d.odometry.RGBDOdometryJacobianFromHybridTerm(), option)
-        return [success, trans, info]
-
     def register_color_icp(self, source, target):
+        """
+        Use colored ICP method to compute transformation of two point cloud
+        """
         # voxel_radius = [0.04, 0.02, 0.01]
         voxel_radius = [0.02, 0.01, 0.005]
         max_iter = [50, 30, 14]
@@ -96,31 +98,6 @@ class RealsenseRecorder(object):
             current_transformation = result_icp.transformation   
         return current_transformation   
 
-    def integrate_and_save(self, mesh_or_pcd='pcd'):
-        color_image_paths, depth_image_paths = get_rgbd_file_lists(self.output_folder)
-        volume = o3d.integration.ScalableTSDFVolume(
-            voxel_length=0.002,
-            sdf_trunc=0.04,
-            color_type=o3d.integration.TSDFVolumeColorType.RGB8
-        )
-        for i in range(len(self.pose_graph.nodes)):
-            logger.info("Integrate rgbd frame %d." % i)
-            rgbd_image = self.read_rgbd_image(color_image_paths[i], depth_image_paths[i])
-            pose = self.pose_graph.nodes[i].pose
-            volume.integrate(rgbd_image, self.camera_intrinsic, np.linalg.inv(pose))
-        
-        if mesh_or_pcd == 'mesh':
-            mesh = volume.extract_triangle_mesh()
-            mesh_path = join(getcwd(), "result_mesh.ply")
-            mesh.compute_vertex_normals()
-            o3d.io.write_triangle_mesh(mesh_path, mesh, False, True)
-            logger.info(f"Color mesh has been saved in {mesh_path}")
-        else:
-            pcd = volume.extract_point_cloud()
-            pcd_path = join(getcwd(), "result_colored_pcd.ply")
-            o3d.io.write_point_cloud(pcd_path, pcd, False, True)
-            logger.info(f"Color point cloud has been saved in {pcd_path}")
-
     def _init_camera(self):
         logger.debug("Init realsense stream pipeline")
         self.pipeline = rs.pipeline()
@@ -137,10 +114,6 @@ class RealsenseRecorder(object):
         self._save_intrinsic_as_json(config_path, color_frame)
         self.camera_intrinsic = o3d.io.read_pinhole_camera_intrinsic(config_path)
         logger.debug("Saved success")
-
-    def _init_pose_graph(self):
-        o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Error)
-        self.pose_graph = o3d.registration.PoseGraph()
 
     @staticmethod
     def make_clean_folder(path_folder):
@@ -237,6 +210,7 @@ class RealsenseRecorder(object):
         self._skip_auto_exposure_time()
         # Streaming loop
         try:
+            INIT_FLAG = False
             flip_transform = [[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]]
             while True:
                 # Get frameset of color and depth
@@ -249,68 +223,75 @@ class RealsenseRecorder(object):
                 aligned_depth_frame = aligned_frames.get_depth_frame()
                 color_frame = aligned_frames.get_color_frame()
 
-                # Init camera intrinsic and pose graph
-                if self.frame_count == 0:
-                    self._init_camera_intrinsic(color_frame)
-                    self._init_pose_graph()
-
-                    logger.debug("----------Start streaming----------")
-                    input("Please press any key to start.")
-
                 # Validate that both frames are valid
                 if not aligned_depth_frame or not color_frame:
+                    continue
+
+                # Init camera intrinsic and pose graph
+                if not INIT_FLAG:
+                    self._init_camera_intrinsic(color_frame)
+                    logger.debug("----------Start streaming----------")
+                    input("Please press any key to start.")
+                    INIT_FLAG = True
                     continue
 
                 # Extract color and depth image from aligned frame
                 depth_image = np.asanyarray(aligned_depth_frame.get_data())
                 color_image = np.asanyarray(color_frame.get_data())
 
+                # Get color and depth path
+                color_path = join(self.color_folder, "%06d.jpg" % self.frame_count)
+                depth_path = join(self.depth_folder, "%06d.png" % self.frame_count)
+                cv2.imwrite(color_path, color_image)
+                cv2.imwrite(depth_path, depth_image)
+                logger.info(f"Saved color+depth image {self.frame_count}")
+
                 # Create grey rgbd image
-                rgbd_image = self.create_rgbd_image(color_image, depth_image, True)
+                # rgbd_image = self.create_rgbd_image(color_image, depth_image, True)
 
                 # Create current point cloud
-                current_pcd = o3d.geometry.PointCloud.create_from_rgbd_image(
-                    rgbd_image, self.camera_intrinsic
+                current_pcd = self.create_pcd_from_color_and_depth(
+                    o3d.io.read_image(color_path),
+                    o3d.io.read_image(depth_path)
                 )
+                # current_pcd.voxel_down_sample(self.voxel_size)
                 current_pcd.transform(flip_transform)
 
                 if self.frame_count == 0:
                     self.cloud_base = current_pcd
                     self.prev_cloud = current_pcd
-                    visaulizer = self._get_visualizer()
-                    visaulizer.create_window()
-                    visaulizer.add_geometry(self.cloud_base)
+                    # visaulizer = self._get_visualizer()
+                    # visaulizer.create_window()
+                    # visaulizer.add_geometry(self.cloud_base)
                 else:
                     current_transformation = self.register_color_icp(
                         source=current_pcd, target=self.prev_cloud
                     )
-                    logger.info(f"Register frame {self.frame_count} success")  
+                    logger.info(f"Register frame {self.frame_count} success") 
 
-                trans_odometry_inv = np.linalg.inv(self.world_trans)
-                self.pose_graph.nodes.append(o3d.registration.PoseGraphNode(trans_odometry_inv))
-                logger.info("Update pose graph success")
+                    self.world_trans = np.dot(current_transformation, self.world_trans)
+                    self.prev_cloud = deepcopy(current_pcd)
+                    current_pcd.transform(self.world_trans)
+                    self.cloud_base = self.cloud_base + current_pcd  
+                    self.cloud_base = self.cloud_base.voxel_down_sample(self.voxel_size)  
 
-                cv2.imwrite(join(self.color_folder, "%06d.jpg" % self.frame_count), color_image)
-                cv2.imwrite(join(self.depth_folder, "%06d.png" % self.frame_count), depth_image)
-                logger.info(f"Saved color+depth image {self.frame_count}")
                 self.frame_count += 1
 
                 # Update visualizer
-                if self.frame_count % 10 == 0:
-                    visaulizer.update_geometry(self.cloud_base)
-                    visaulizer.poll_events()
-                    visaulizer.update_renderer()
+                # if self.frame_count % 10 == 0:
+                #     visaulizer.update_geometry(self.cloud_base)
+                #     visaulizer.poll_events()
+                #     visaulizer.update_renderer()
 
                 if self.frame_count == self.end:
-                    self.integrate_and_save(mesh_or_pcd=self.result_type)
-                    o3d.io.write_point_cloud(join(getcwd(), "result_raw.ply"), self.cloud_base, False, True)
+                    o3d.io.write_point_cloud(join(getcwd(), "colored_result.ply"), self.cloud_base, False, True)
                     logger.debug("----------Tear down----------")
                     break
         finally:
             self.pipeline.stop()
-            visaulizer.destroy_window()
+            # visaulizer.destroy_window()
 
 
 if __name__ == "__main__":
-    recorder = RealsenseRecorder(end=20, result_type='pcd')
+    recorder = RealsenseRecorder(end=30, result_type='pcd')
     recorder.run()

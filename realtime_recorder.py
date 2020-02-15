@@ -24,15 +24,16 @@ class Preset(IntEnum):
 
 class RealsenseRecorder(object):
 
-    def __init__(self, end, frame_count=0, output_folder=None,
+    def __init__(self, end, frame_count=0, output_folder=None, voxel_size=0.002,
                  max_depth_in_meters=1.0, result_type='pcd'):
         super(RealsenseRecorder, self).__init__()
         self.end = end
-        self.voxel_size = 0.002
+        self.voxel_size = voxel_size
+        self.result_type = result_type
+
         self.prev_cloud = None
         self.cloud_base = None
         self.camera_intrinsic = None
-        self.result_type = result_type
 
         self.output_folder = output_folder if output_folder else join(getcwd(), "dataset")
         self.color_folder = join(self.output_folder, "color")
@@ -50,14 +51,9 @@ class RealsenseRecorder(object):
             depth_trunc=self.max_depth_in_meters,
             convert_rgb_to_intensity=False
         )
-        volume = o3d.integration.ScalableTSDFVolume(
-            voxel_length=self.voxel_size,
-            sdf_trunc=0.04,
-            color_type=o3d.integration.TSDFVolumeColorType.RGB8
+        pcd = o3d.geometry.PointCloud.create_from_rgbd_image(
+            rgbd_image, self.camera_intrinsic
         )
-        volume.integrate(rgbd_image, self.camera_intrinsic, np.linalg.inv(np.identity(4)))
-        
-        pcd = volume.extract_point_cloud()
         return pcd
 
     def read_rgbd_image(self, color_file, depth_file):
@@ -233,6 +229,7 @@ class RealsenseRecorder(object):
                     logger.debug("----------Start streaming----------")
                     input("Please press any key to start.")
                     INIT_FLAG = True
+                    time.sleep(3)
                     continue
 
                 # Extract color and depth image from aligned frame
@@ -254,7 +251,6 @@ class RealsenseRecorder(object):
                     o3d.io.read_image(color_path),
                     o3d.io.read_image(depth_path)
                 )
-                # current_pcd.voxel_down_sample(self.voxel_size)
                 current_pcd.transform(flip_transform)
 
                 if self.frame_count == 0:
@@ -269,29 +265,47 @@ class RealsenseRecorder(object):
                     )
                     logger.info(f"Register frame {self.frame_count} success") 
 
-                    self.world_trans = np.dot(current_transformation, self.world_trans)
+                    self.world_trans = np.dot(self.world_trans, current_transformation)
+                    # self.world_trans = np.dot(current_transformation, self.world_trans)
                     self.prev_cloud = deepcopy(current_pcd)
                     current_pcd.transform(self.world_trans)
                     self.cloud_base = self.cloud_base + current_pcd  
-                    self.cloud_base = self.cloud_base.voxel_down_sample(self.voxel_size)  
+                    # self.cloud_base = self.cloud_base.voxel_down_sample(self.voxel_size)  
 
                 self.frame_count += 1
 
                 # Update visualizer
-                # if self.frame_count % 10 == 0:
+                # if self.frame_count % 5 == 0:
                 #     visaulizer.update_geometry(self.cloud_base)
                 #     visaulizer.poll_events()
                 #     visaulizer.update_renderer()
 
                 if self.frame_count == self.end:
-                    o3d.io.write_point_cloud(join(getcwd(), "colored_result.ply"), self.cloud_base, False, True)
-                    logger.debug("----------Tear down----------")
+                    logger.info("Removing noise points in point cloud")
+                    self.cloud_base.remove_statistical_outlier(nb_neighbors=20, std_ratio=2.0)
+                    self.cloud_base = self.cloud_base.voxel_down_sample(self.voxel_size)
+                    logger.info(self.cloud_base)
+                    result_path = join(getcwd(), "colored_result.ply")
+                    if self.result_type == "pcd":
+                        o3d.io.write_point_cloud(result_path, self.cloud_base, False, True)
+                    else:
+                        self.cloud_base.estimate_normals()
+                        distances = self.cloud_base.compute_nearest_neighbor_distance()
+                        avg_dist = np.mean(distances)
+                        mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_ball_pivoting(
+                            self.cloud_base, o3d.utility.DoubleVector([avg_dist, avg_dist * 2])
+                        )
+                        o3d.io.write_triangle_mesh(result_path, mesh, False, True)
+                        o3d.io.write_point_cloud(join(getcwd(), "colored_pcd.ply"), self.cloud_base, False, True)
+                    logger.info(f"Result has been saved in {result_path}")
                     break
         finally:
             self.pipeline.stop()
             # visaulizer.destroy_window()
+            logger.debug("----------Tear down----------")
 
 
 if __name__ == "__main__":
-    recorder = RealsenseRecorder(end=30, result_type='pcd')
+    recorder = RealsenseRecorder(end=30, result_type='mesh',
+                                 max_depth_in_meters=1.0, voxel_size=0.0025)
     recorder.run()

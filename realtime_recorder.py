@@ -25,7 +25,7 @@ class Preset(IntEnum):
 class RealsenseRecorder(object):
 
     def __init__(self, end, frame_count=0, output_folder=None, voxel_size=0.002,
-                 max_depth_in_meters=1.0, icp_type='color'):
+                 max_depth_in_meters=1.0, icp_type='point_to_plane'):
         super(RealsenseRecorder, self).__init__()
         self.end = end
         self.voxel_size = voxel_size
@@ -118,7 +118,7 @@ class RealsenseRecorder(object):
                 transformation_icp, information_icp, uncertain=False
             )
         )
-        logger.info("Update pose graph success")
+        logger.debug("Update pose graph success")
 
     def optimize_pose_graph(self) -> None:
         option = o3d.registration.GlobalOptimizationOption(
@@ -166,6 +166,24 @@ class RealsenseRecorder(object):
         self.pose_graph = o3d.registration.PoseGraph()
         odometry = np.identity(4)
         self.pose_graph.nodes.append(o3d.registration.PoseGraphNode(odometry))
+
+    def _get_depth_scale(self):
+        logger.debug("Init depth sensor")
+        depth_sensor = self.profile.get_device().first_depth_sensor()
+        
+        logger.debug("Config depth sensor")
+        # Using preset HighAccuracy for recording
+        depth_sensor.set_option(rs.option.visual_preset, Preset.HighAccuracy)
+
+        # Getting the depth sensor's depth scale (see rs-align example for explanation)
+        depth_scale = depth_sensor.get_depth_scale()
+        return depth_scale
+
+    def _skip_auto_exposure_time(self):
+        logger.debug("Skip 5 first frames to give the Auto-Exposure time to adjust")
+        for x in range(5):
+            self.pipeline.wait_for_frames()
+            logger.debug(f"Skip {x+1} frame") 
 
     @staticmethod
     def make_clean_folder(path_folder):
@@ -221,24 +239,6 @@ class RealsenseRecorder(object):
     def _get_visualizer():
         return o3d.visualization.Visualizer()
 
-    def _get_depth_scale(self):
-        logger.debug("Init depth sensor")
-        depth_sensor = self.profile.get_device().first_depth_sensor()
-        
-        logger.debug("Config depth sensor")
-        # Using preset HighAccuracy for recording
-        depth_sensor.set_option(rs.option.visual_preset, Preset.HighAccuracy)
-
-        # Getting the depth sensor's depth scale (see rs-align example for explanation)
-        depth_scale = depth_sensor.get_depth_scale()
-        return depth_scale
-
-    def _skip_auto_exposure_time(self):
-        logger.debug("Skip 5 first frames to give the Auto-Exposure time to adjust")
-        for x in range(5):
-            self.pipeline.wait_for_frames()
-            logger.debug(f"Skip {x+1} frame") 
-
     def run(self):
         # Getting the depth sensor's depth scale (see rs-align example for explanation)
         depth_scale = self._get_depth_scale()
@@ -289,6 +289,7 @@ class RealsenseRecorder(object):
                     logger.debug("----------Start streaming----------")
                     input("Please press any key to start.")
                     INIT_FLAG = True
+                    logger.info("Camera start capturing after 3 secs.")
                     time.sleep(3)
                     continue
 
@@ -345,7 +346,7 @@ class RealsenseRecorder(object):
                 #     visaulizer.update_renderer()
 
                 if self.frame_count == self.end:
-                    result_path = join(getcwd(), "result_mesh.ply")
+                    result_path = join(getcwd(), "mesh_raw.ply")
                     if self.icp_type == "point_to_plane":
                         pose_graph_path = join(getcwd(), "pose_graph.json")
                         o3d.io.write_pose_graph(pose_graph_path, self.pose_graph)
@@ -374,6 +375,6 @@ class RealsenseRecorder(object):
 
 
 if __name__ == "__main__":
-    recorder = RealsenseRecorder(end=80, icp_type='point_to_plane',
+    recorder = RealsenseRecorder(end=230, icp_type='point_to_plane',
                                  max_depth_in_meters=1.0, voxel_size=0.0025)
     recorder.run()

@@ -37,13 +37,14 @@ def color_map_optimization(mesh, rgbd_images, camera_trajectory, maximum_iterati
     option.maximum_iteration = maximum_iteration
     option.non_rigid_camera_coordinate = False
     o3d.color_map.color_map_optimization(mesh, rgbd_images, camera_trajectory, option)
+    return mesh
 
 if __name__ == "__main__":
     o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Debug)
     camera_trajectory = o3d.camera.PinholeCameraTrajectory()
     camera_intrinsic = o3d.io.read_pinhole_camera_intrinsic(join(getcwd(), "camera_intrinsic.json"))
     pose_graph = o3d.io.read_pose_graph(join(getcwd(), "pose_graph.json"))
-    mesh = o3d.io.read_triangle_mesh(join(getcwd(), "result_mesh.ply"))
+    mesh = o3d.io.read_triangle_mesh(join(getcwd(), "mesh_raw.ply"))
     pcds_down, rgbd_images = load_point_clouds_and_rgbd_images(voxel_size)
 
     params_list = []

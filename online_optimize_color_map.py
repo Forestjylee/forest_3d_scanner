@@ -44,7 +44,7 @@ if __name__ == "__main__":
     camera_trajectory = o3d.camera.PinholeCameraTrajectory()
     camera_intrinsic = o3d.io.read_pinhole_camera_intrinsic(join(getcwd(), "camera_intrinsic.json"))
     pose_graph = o3d.io.read_pose_graph(join(getcwd(), "pose_graph.json"))
-    mesh = o3d.io.read_triangle_mesh(join(getcwd(), "mesh_raw.ply"))
+    mesh = o3d.io.read_triangle_mesh(join(getcwd(), "online_raw_mesh.ply"))
     pcds_down, rgbd_images = load_point_clouds_and_rgbd_images(voxel_size)
 
     params_list = []
@@ -56,4 +56,4 @@ if __name__ == "__main__":
     camera_trajectory.parameters = params_list
 
     mesh = color_map_optimization(mesh, rgbd_images, camera_trajectory, 200)
-    o3d.io.write_triangle_mesh(join(getcwd(), "mesh_after_optimization.ply"), mesh, False)
+    o3d.io.write_triangle_mesh(join(getcwd(), "online_optimized_mesh.ply"), mesh, False)

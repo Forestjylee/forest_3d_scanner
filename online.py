@@ -289,7 +289,7 @@ class RealsenseRecorder(object):
                     logger.debug("----------Start streaming----------")
                     input("Please press any key to start.")
                     INIT_FLAG = True
-                    logger.info("Camera start capturing after 3 secs.")
+                    logger.info("Start processing after 3 secs.")
                     time.sleep(3)
                     continue
 
@@ -346,7 +346,7 @@ class RealsenseRecorder(object):
                 #     visaulizer.update_renderer()
 
                 if self.frame_count == self.end:
-                    result_path = join(getcwd(), "mesh_raw.ply")
+                    result_path = join(getcwd(), "online_raw_mesh.ply")
                     if self.icp_type == "point_to_plane":
                         pose_graph_path = join(getcwd(), "pose_graph.json")
                         o3d.io.write_pose_graph(pose_graph_path, self.pose_graph)
@@ -375,6 +375,6 @@ class RealsenseRecorder(object):
 
 
 if __name__ == "__main__":
-    recorder = RealsenseRecorder(end=230, icp_type='point_to_plane',
+    recorder = RealsenseRecorder(end=30, icp_type='point_to_plane',
                                  max_depth_in_meters=1.0, voxel_size=0.0025)
     recorder.run()

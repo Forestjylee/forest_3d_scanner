@@ -24,29 +24,26 @@ class Preset(IntEnum):
 
 class RealsenseRecorder(object):
 
-    def __init__(self, end, frame_count=0, output_folder=None, voxel_size=0.002,
+    def __init__(self, end, output_folder=None, voxel_size=0.0025,
                  max_depth_in_meters=1.0, icp_type='point_to_plane'):
         super(RealsenseRecorder, self).__init__()
-        self.end = end
+        self.icp_type = icp_type
         self.voxel_size = voxel_size
         self.max_correspondence_distance_coarse = voxel_size * 15
         self.max_correspondence_distance_fine = voxel_size * 1.5      
 
-        self.icp_type = icp_type
-
+        self.output_folder = output_folder if output_folder else join(getcwd(), "dataset")
+        self.color_folder = join(self.output_folder, "color")
+        self.depth_folder = join(self.output_folder, "depth")
+        
+        self.end = end
+        self.frame_count = 0     
         self.prev_cloud = None
         self.cloud_base = None
         self.pose_graph = None
         self.rgbd_images = []
         self.camera_intrinsic = None
-
-
-        self.output_folder = output_folder if output_folder else join(getcwd(), "dataset")
-        self.color_folder = join(self.output_folder, "color")
-        self.depth_folder = join(self.output_folder, "depth")
-      
         self.world_trans = np.identity(4)
-        self.frame_count = frame_count
         self.max_depth_in_meters = max_depth_in_meters
 
         self._init_camera()

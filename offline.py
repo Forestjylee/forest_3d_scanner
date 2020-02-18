@@ -1,7 +1,8 @@
+import argparse
 import numpy as np
 import open3d as o3d
 from os import getcwd
-from os.path import join
+from os.path import join, exists
 from utils import get_rgbd_file_lists
 
 
@@ -88,8 +89,18 @@ def color_map_optimization(mesh, rgbd_images, camera_trajectory, maximum_iterati
 
 if __name__ == "__main__":
     o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Debug)
-    dataset_folder = join(getcwd(), "dataset")
-    camera_intrinsic = o3d.io.read_pinhole_camera_intrinsic(join(getcwd(), "camera_intrinsic.json"))
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-d", "--dataset", type=str, help="Dataset folder path, which saves color images and depth images", default=join(getcwd(), "dataset"))
+    parser.add_argument("-c", "--camera-intrinsic", type=str, help="Camera intrinsic matrix", default=join(getcwd(), "camera_intrinsic.json"))
+    args = parser.parse_args()
+    dataset_folder = args.dataset
+    camera_intrinsic = args.camera_intrinsic
+    if exists(dataset_folder) and exists(camera_intrinsic):
+        pass
+    else:
+        print("File or folder is not exist.")
+        exit(-1)
+    camera_intrinsic = o3d.io.read_pinhole_camera_intrinsic(camera_intrinsic)
     pcds, rgbd_images = load_point_clouds_and_rgbd_images(dataset_folder, voxel_size, camera_intrinsic)
 
     print("Full registration ...")

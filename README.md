@@ -287,6 +287,6 @@ Just have a try.🚀
 
 ## 5.Others
 
-After getting a 3D model, you can use for volume measurement, 3D print and so on. This project mainly use open3d to process point cloud, register them and optimize them. By the way, open3d is such a wonderful package for 3D data processing. If you find any problems or bugs, please email me at 📧forerstjylee@qq.com
+After getting a 3D model, you can use for volume measurement, 3D print and so on. This project mainly use open3d to process point cloud, register them and optimize them. By the way, open3d is such a wonderful package for 3D data processing. If you find any problems or bugs, please email me at 📧forestjylee@qq.com
 
 Enjoy it!😉

@@ -24,7 +24,7 @@ After you clone the source code from github website of whatever, you have to spe
 
 ### 1.1.Install Python
 
-Download Python version 3.6.x from its [official website](https://www.python.org/) and setup it following the instructions.
+Download **Python version 3.6.x** from its [official website](https://www.python.org/) and setup it following the instructions.
 
 Or install [anaconda](https://www.anaconda.com/)(Python 3.6.x version).
 
@@ -52,7 +52,7 @@ If you get similar output as shown above, you set up environment variable correc
 
 **(If you only use the offline version, you can skip this step.)**
 
-- **Firstly**, download the appropriate exe in official [github repository](https://github.com/IntelRealSense/librealsense/releases). For example, my operating system is Windows 10, so I should download Intel.RealSense.SDK-WIN10-x.xx.x.xxxx.exe.
+- **Firstly**, download the appropriate exe in official [github repository](https://github.com/IntelRealSense/librealsense/releases). For example, my operating system is Windows 10, so I should download **Intel.RealSense.SDK-WIN10-x.xx.x.xxxx.exe**.
 - **Secondly**, execute the .exe file you downloaded, finish the installation following instructions. Don't worry, it's extremely easy.
 - **Thirdly**, you have to install the python wrapper for RealSense SDK.
 
@@ -92,7 +92,7 @@ If you encounter any problems during installation, try to install that package m
 > **Notes: If your speed of downloading packages is slow, you can change your pip to download  from mirror source.**
 
 - **Firstly**, installing pqi.
-- **Secondly**, use "pqi use" to change to a faster mirror source.
+- **Secondly**, use "`pqi use`" to change to a faster mirror source.
 
 ```powershell
 >>> pip install pqi
@@ -121,7 +121,7 @@ After installing all of these successfully, reboot your computer and the prepara
 
 ### 2.1.Config parameters
 
-In the online.py, you can see a huge class names RealsenseRecorder. Now, I am gonna explain some important parameter when you initialize it.
+In the online.py, you can see a class named `RealsenseRecorder`. Now, I am gonna explain some important parameter when you initialize it.
 
 ```python
 def __init__(self, end, output_folder=None, voxel_size=0.0025, max_depth_in_meters=1.0, icp_type='point_to_plane'):
@@ -139,7 +139,7 @@ def __init__(self, end, output_folder=None, voxel_size=0.0025, max_depth_in_mete
 
 ### 2.2.Run
 
-In the main function in online.py, you can see:
+In the main function in `online.py`, you can see:
 
 ```python
 if __name__ == "__main__":
@@ -195,10 +195,10 @@ Output in terminal:
 
 From the output, we can see  that three files and a new folder have been created:
 
-- /dataset: It contains two sub folders—color and depth. rgb images and depth images save in them respectively.
-- camera_intrinsic.json: Realsense camera's intrinsic information.
-- pose_graph.json: Transformation between adjacent images.
-- online_raw_mesh.ply: 3D mesh without optimization.
+- `/dataset`: It contains two sub folders—color and depth. rgb images and depth images save in them respectively.
+- `camera_intrinsic.json`: Realsense camera's intrinsic information.
+- `pose_graph.json`: Transformation between adjacent images.
+- `online_raw_mesh.ply`: 3D mesh without optimization.
 
 If you wanna optimize the mesh, please execute:
 
@@ -245,8 +245,8 @@ By default, dataset folder is `$EXECUTE_PATH/dataset`, camera intrinsic is `$EXE
 
 Two files are created:
 
-- offline_raw_mesh.ply: 3D mesh without optimization.
-- offline_oprimized_mesh.ply: 3D mesh with optimization.
+- `offline_raw_mesh.ply`: 3D mesh without optimization.
+- `offline_oprimized_mesh.ply`: 3D mesh with optimization.
 
 
 
@@ -254,7 +254,9 @@ Two files are created:
 
 ## 4.Visualization
 
-mesh_viewer.py is for mesh visualization.
+### 4.1.Normal mesh
+
+`mesh_viewer.py` is used for mesh visualization.
 
 ```powershell
 >>> python mesh_viewer.py -h
@@ -267,17 +269,42 @@ optional arguments:
                         Mesh file path.
 ```
 
-You can use "-m" to show mesh in a new window.
+You can use "-m" argument to show mesh in a new window.
 
 ```powershell
 >>> python mesh_viewer.py -m offline_optimized_mesh.ply
 ```
 
-In addition, "-display" to show animation visualization.
+In addition, use "`-display`" argument to show animation visualization.
 
 ```powershell
 >> python mesh_viewer.py -display -m offline_optimized_mesh.ply
 ```
+
+
+
+### 4.2.Mesh with bounding box
+
+`bounding_box.py` is used for draw mesh's bounding box.
+
+```powershell
+>>> python bounding_box.py -m offline_optimized_mesh.ply
+```
+
+What's more, you can use "`-volume`" to calculate bounding box's volume.
+
+```powershell
+>>> python bounding_box.py -volume -m offline_optimized_mesh.ply
+```
+
+Output:
+
+```powershell
+Bounding box's volume:  ???
+Length of the bounding box in x, y, and z dimension:  x=???, y=???, z=???
+```
+
+
 
 Just have a try.🚀
 
@@ -287,6 +314,6 @@ Just have a try.🚀
 
 ## 5.Others
 
-After getting a 3D model, you can use it for volume calculation, 3D print and so on. This project mainly use open3d to process point cloud, register them and optimize them. By the way, open3d is such a wonderful package for 3D data processing. If you find any problems or bugs, please email me at 📧forestjylee@qq.com
+With a 3D model, you can use it for volume calculation, 3D print and so on. This project mainly use open3d to process point cloud, register them and optimize them. By the way, open3d is such a wonderful package for 3D data processing. If you find any problems or bugs, please email me at 📧forestjylee@qq.com
 
 Enjoy it!😉

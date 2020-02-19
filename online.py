@@ -312,9 +312,6 @@ class RealsenseRecorder(object):
                 if self.frame_count == 0:
                     self.cloud_base = current_pcd
                     self.prev_cloud = current_pcd
-                    # visaulizer = self._get_visualizer()
-                    # visaulizer.create_window()
-                    # visaulizer.add_geometry(self.cloud_base)
                 else:
                     if self.icp_type == 'color':
                         current_transformation = self.register_color_icp(
@@ -336,12 +333,6 @@ class RealsenseRecorder(object):
                     logger.info(f"Register frame {self.frame_count} success") 
                 self.frame_count += 1
 
-                # Update visualizer
-                # if self.frame_count % 5 == 0:
-                #     visaulizer.update_geometry(self.cloud_base)
-                #     visaulizer.poll_events()
-                #     visaulizer.update_renderer()
-
                 if self.frame_count == self.end:
                     result_path = join(getcwd(), "online_raw_mesh.ply")
                     if self.icp_type == "point_to_plane":
@@ -356,6 +347,8 @@ class RealsenseRecorder(object):
                         self.cloud_base = self.cloud_base.voxel_down_sample(self.voxel_size)
                         
                         self.cloud_base.estimate_normals()
+                        o3d.io.write_point_cloud("test.ply", self.cloud_base, False)
+                        exit()
                         distances = self.cloud_base.compute_nearest_neighbor_distance()
                         avg_dist = np.mean(distances)
                         mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_ball_pivoting(
@@ -367,11 +360,10 @@ class RealsenseRecorder(object):
                     break
         finally:
             self.pipeline.stop()
-            # visaulizer.destroy_window()
             logger.debug("----------Tear down----------")
 
 
 if __name__ == "__main__":
-    recorder = RealsenseRecorder(end=30, icp_type='point_to_plane',
+    recorder = RealsenseRecorder(end=30, icp_type='color',
                                  max_depth_in_meters=1.0, voxel_size=0.0025)
     recorder.run()

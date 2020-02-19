@@ -4,7 +4,7 @@ import open3d as o3d
 from os.path import exists
 
 
-def show_mesh_with_rotation(mesh, set_background_black=True):
+def show_mesh_with_rotation(mesh, set_background_black=True, window_name="mesh"):
 
     def rotate_view(vis):
         if set_background_black:
@@ -14,11 +14,18 @@ def show_mesh_with_rotation(mesh, set_background_black=True):
         ctr.rotate(5.0, 0.0)
         return False
 
-    o3d.visualization.draw_geometries_with_animation_callback([mesh], rotate_view)
+    o3d.visualization.draw_geometries_with_animation_callback(
+        [mesh], rotate_view,
+        window_name=window_name,
+        width=1280, height=768
+    )
 
 
-def show_mesh(mesh):
-    o3d.visualization.draw_geometries([mesh])
+def show_mesh(mesh, window_name="mesh"):
+    o3d.visualization.draw_geometries(
+        [mesh], window_name=window_name,
+         width=1280, height=768
+    )
 
 
 if __name__ == "__main__":
@@ -37,6 +44,6 @@ if __name__ == "__main__":
     mesh = o3d.io.read_triangle_mesh(mesh_filepath)
     mesh.transform(flip_transform)
     if args.display:
-        show_mesh_with_rotation(mesh)
+        show_mesh_with_rotation(mesh, window_name=mesh_filepath)
     else:
-        show_mesh(mesh)
+        show_mesh(mesh, window_name=mesh_filepath)

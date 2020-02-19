@@ -8,9 +8,9 @@
 
 This project is about 3D reconstruction, which contains two main parts. One is online version, the other is offline version. 
 
-Online version have a strong connection with Intel RealSense D415 depth camera, which can process rgb images and depth images while collecting them, cost nearly no time to get a raw 3D mesh. If you want to improve the appearance of the raw mesh, you can run the optimization algorithm which will costs a few minutes.
+Online version has a strong connection with Intel RealSense D415 depth camera, which can process rgb images and depth images while collecting them, cost nearly no time to get a raw 3D mesh. If you want to improve the performance of the raw mesh, run `online_optimize_color_map.py` which will costs a few minutes.
 
-Offline version is designed for other cameras or dataset, which is flexible and light. User input merely rgb images, depth images and camera intrinsic matrix, after few minutes, can get a optimized 3D mesh.
+Offline version is designed for other cameras or dataset, which is flexible and light. User input merely rgb images, depth images and camera intrinsic matrix, after few minutes, can get a optimized 3D mesh directly.
 
 
 
@@ -181,7 +181,7 @@ Please press any key to start.
 
 If you see such output, it means everything is ready, just press **any key** to continue.
 
-If you use it for the first time, hold you camera and don't move it, observe the speed of processing and you can estimate values you need to set in RealsenseRecorder. After collecting preset amount of images, it will stop automatically. 
+If you use it for the first time, hold you camera and don't move it, observe the speed of processing and you can estimate values you need to set when initializing `class RealsenseRecorder`. After collecting preset amount of images, it will stop automatically. 
 
 Output in terminal:
 
@@ -287,6 +287,6 @@ Just have a try.🚀
 
 ## 5.Others
 
-After getting a 3D model, you can use for volume measurement, 3D print and so on. This project mainly use open3d to process point cloud, register them and optimize them. By the way, open3d is such a wonderful package for 3D data processing. If you find any problems or bugs, please email me at 📧forestjylee@qq.com
+After getting a 3D model, you can use it for volume calculation, 3D print and so on. This project mainly use open3d to process point cloud, register them and optimize them. By the way, open3d is such a wonderful package for 3D data processing. If you find any problems or bugs, please email me at 📧forestjylee@qq.com
 
 Enjoy it!😉

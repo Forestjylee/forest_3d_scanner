@@ -6,7 +6,7 @@
 
 ## 0.Abstract
 
-This project is about 3D reconstruction, which contains two main parts. One is [online version](#2Online version), the other is [offline version](#3Offline version). 
+This project is about 3D reconstruction, which contains two main parts. One is online version, the other is offline version. 
 
 Online version has a strong connection with **Intel RealSense D415 depth camera**, which can process RGB images and depth images while collecting them, cost nearly no time to get a raw 3D mesh. If you want to improve the performance of the raw mesh, run `online_optimize_color_map.py` which will costs a few minutes.
 

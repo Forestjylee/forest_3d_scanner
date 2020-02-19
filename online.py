@@ -9,8 +9,10 @@ from enum import IntEnum
 from loguru import logger
 import pyrealsense2 as rs
 from os import getcwd, makedirs
-from os.path import join, exists
+from os.path import join, exists, dirname
+
 from utils import get_rgbd_file_lists
+from caffe_object_detection import caffe_get_detector, caffe_detect_body
 
 
 class Preset(IntEnum):
@@ -25,9 +27,10 @@ class Preset(IntEnum):
 class RealsenseRecorder(object):
 
     def __init__(self, end, output_folder=None, voxel_size=0.0025,
-                 max_depth_in_meters=1.0, icp_type='point_to_plane'):
+                 max_depth_in_meters=1.0, icp_type='point_to_plane', only_body=False):
         super(RealsenseRecorder, self).__init__()
         self.icp_type = icp_type
+        self.only_body - only_body
         self.voxel_size = voxel_size
         self.max_correspondence_distance_coarse = voxel_size * 15
         self.max_correspondence_distance_fine = voxel_size * 1.5      
@@ -46,7 +49,10 @@ class RealsenseRecorder(object):
         self.world_trans = np.identity(4)
         self.max_depth_in_meters = max_depth_in_meters
 
-        self._init_camera()
+        self.__init_camera()
+
+        self.__init_object_detector()
+
 
     def create_pcd_from_rgbd_image(self, rgbd_image):
         pcd = o3d.geometry.PointCloud.create_from_rgbd_image(
@@ -142,7 +148,7 @@ class RealsenseRecorder(object):
         mesh.compute_vertex_normals()
         return mesh
 
-    def _init_camera(self):
+    def __init_camera(self):
         logger.debug("Init realsense stream pipeline")
         self.pipeline = rs.pipeline()
 
@@ -152,19 +158,26 @@ class RealsenseRecorder(object):
         logger.debug("Start streaming")
         self.profile = self.pipeline.start(config)       
 
-    def _init_camera_intrinsic(self, color_frame):
+    def __init_object_detector(self):
+        self.detector = caffe_get_detector(
+            join(getcwd(), 'static', 'models', 'MobileNetSSD', 'MobileNetSSD_deploy.prototxt'),
+            join(getcwd(), 'static', 'models', 'MobileNetSSD', 'MobileNetSSD_deploy.caffemodel')
+        )
+        logger.debug("Load object detection model successfully")
+
+    def __init_camera_intrinsic(self, color_frame):
         logger.debug("Saving camera intrinsic info")
         config_path = join(getcwd(), "camera_intrinsic.json")
         self._save_intrinsic_as_json(config_path, color_frame)
         self.camera_intrinsic = o3d.io.read_pinhole_camera_intrinsic(config_path)
         logger.debug("Saved success")
 
-    def _init_pose_graph(self):
+    def __init_pose_graph(self):
         self.pose_graph = o3d.registration.PoseGraph()
         odometry = np.identity(4)
         self.pose_graph.nodes.append(o3d.registration.PoseGraphNode(odometry))
 
-    def _get_depth_scale(self):
+    def __get_depth_scale(self):
         logger.debug("Init depth sensor")
         depth_sensor = self.profile.get_device().first_depth_sensor()
         
@@ -176,7 +189,7 @@ class RealsenseRecorder(object):
         depth_scale = depth_sensor.get_depth_scale()
         return depth_scale
 
-    def _skip_auto_exposure_time(self):
+    def __skip_auto_exposure_time(self):
         logger.debug("Skip 5 first frames to give the Auto-Exposure time to adjust")
         for x in range(5):
             self.pipeline.wait_for_frames()
@@ -238,7 +251,7 @@ class RealsenseRecorder(object):
 
     def run(self):
         # Getting the depth sensor's depth scale (see rs-align example for explanation)
-        depth_scale = self._get_depth_scale()
+        depth_scale = self.__get_depth_scale()
 
         # Create an align object
         # The "align_to" is the stream type to which we plan to align depth frames.
@@ -256,7 +269,7 @@ class RealsenseRecorder(object):
         self.make_clean_folder(self.depth_folder)
         logger.debug("Success")
 
-        self._skip_auto_exposure_time()
+        self.__skip_auto_exposure_time()
         # Streaming loop
         try:
             INIT_FLAG = False
@@ -277,9 +290,9 @@ class RealsenseRecorder(object):
 
                 # Init camera intrinsic and pose graph
                 if not INIT_FLAG:
-                    self._init_camera_intrinsic(color_frame)
+                    self.__init_camera_intrinsic(color_frame)
                     if self.icp_type == 'point_to_plane':
-                        self._init_pose_graph()
+                        self.__init_pose_graph()
                         logger.debug("Using point to plane ICP registration")
                     else:
                         logger.debug("Using color ICP registration")
@@ -293,6 +306,15 @@ class RealsenseRecorder(object):
                 # Extract color and depth image from aligned frame
                 depth_image = np.asanyarray(aligned_depth_frame.get_data())
                 color_image = np.asanyarray(color_frame.get_data())
+
+                # Object detection
+                if self.only_body:
+                    detect_result = caffe_detect_body(detector=self.detector, image=color_image)
+                    if detect_result is None:
+                        logger.info("There is no body in the scene")
+                        continue
+                    else:
+                        col_min, col_max, row_min, row_max = detect_result
 
                 # Get color and depth path
                 color_path = join(self.color_folder, "%06d.jpg" % self.frame_count)
@@ -333,6 +355,19 @@ class RealsenseRecorder(object):
                     logger.info(f"Register frame {self.frame_count} success") 
                 self.frame_count += 1
 
+                # Display background removed color image currently
+                # Remove background - Set pixels further than clipping_distance to grey
+                grey_color = 153
+                #depth image is 1 channel, color is 3 channels
+                depth_image_3d = np.dstack((depth_image, depth_image, depth_image))
+                bg_removed = np.where((depth_image_3d > self.max_depth_in_meters / depth_scale) | \
+                        (depth_image_3d <= 0), grey_color, color_image)
+
+                bg_removed = cv2.rectangle(bg_removed, (col_min, row_min), (col_max, row_max), (255, 0, 0), 1)
+                cv2.namedWindow('Recorder Realsense', cv2.WINDOW_AUTOSIZE)
+                cv2.imshow('Recorder Realsense', bg_removed)
+                cv2.waitKey(1)
+
                 if self.frame_count == self.end:
                     result_path = join(getcwd(), "online_raw_mesh.ply")
                     if self.icp_type == "point_to_plane":
@@ -347,8 +382,6 @@ class RealsenseRecorder(object):
                         self.cloud_base = self.cloud_base.voxel_down_sample(self.voxel_size)
                         
                         self.cloud_base.estimate_normals()
-                        o3d.io.write_point_cloud("test.ply", self.cloud_base, False)
-                        exit()
                         distances = self.cloud_base.compute_nearest_neighbor_distance()
                         avg_dist = np.mean(distances)
                         mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_ball_pivoting(
@@ -360,10 +393,11 @@ class RealsenseRecorder(object):
                     break
         finally:
             self.pipeline.stop()
+            cv2.destroyAllWindows()
             logger.debug("----------Tear down----------")
 
 
 if __name__ == "__main__":
-    recorder = RealsenseRecorder(end=30, icp_type='color',
-                                 max_depth_in_meters=1.0, voxel_size=0.0025)
+    recorder = RealsenseRecorder(end=30, icp_type='point_to_plane',
+                                 max_depth_in_meters=1.0, voxel_size=0.0025, only_body=True)
     recorder.run()

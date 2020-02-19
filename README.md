@@ -6,11 +6,11 @@
 
 ## 0.Abstract
 
-This project is about 3D reconstruction, which contains two main parts. One is online version, the other is offline version. 
+This project is about 3D reconstruction, which contains two main parts. One is [online version](#2.Online version), the other is [offline version](#3.Offline version). 
 
-Online version has a strong connection with Intel RealSense D415 depth camera, which can process rgb images and depth images while collecting them, cost nearly no time to get a raw 3D mesh. If you want to improve the performance of the raw mesh, run `online_optimize_color_map.py` which will costs a few minutes.
+Online version has a strong connection with **Intel RealSense D415 depth camera**, which can process RGB images and depth images while collecting them, cost nearly no time to get a raw 3D mesh. If you want to improve the performance of the raw mesh, run `online_optimize_color_map.py` which will costs a few minutes.
 
-Offline version is designed for other cameras or dataset, which is flexible and light. User input merely rgb images, depth images and camera intrinsic matrix, after few minutes, can get a optimized 3D mesh directly.
+Offline version is designed for other cameras or dataset, which is flexible and light. User input merely RGB images, depth images and camera intrinsic matrix, after few minutes, can get a optimized 3D mesh directly.
 
 
 
@@ -44,7 +44,7 @@ pip 20.0.2 from d:\anaconda3\lib\site-packages\pip (python 3.6)
 
 If you get similar output as shown above, you set up environment variable correctly.
 
-> **Notes: Please ensure the python interpreter in you computer is version 3.6.x, or it may cause unpredictable bugs.**
+> **Note: Please ensure the python interpreter in you computer is version 3.6.x, or it may cause unpredictable bugs.**
 
 
 
@@ -89,7 +89,7 @@ Launch you terminal
 
 If you encounter any problems during installation, try to install that package merely or search solutions on the Internet.
 
-> **Notes: If your speed of downloading packages is slow, you can change your pip to download  from mirror source.**
+> **Note: If your speed of downloading packages is slow, you can change your pip to download  from mirror source.**
 
 - **Firstly**, installing pqi.
 - **Secondly**, use "`pqi use`" to change to a faster mirror source.
@@ -124,13 +124,15 @@ After installing all of these successfully, reboot your computer and the prepara
 In the online.py, you can see a class named `RealsenseRecorder`. Now, I am gonna explain some important parameter when you initialize it.
 
 ```python
-def __init__(self, end, output_folder=None, voxel_size=0.0025, max_depth_in_meters=1.0, icp_type='point_to_plane'):
+def __init__(self, end, output_folder=None, voxel_size=0.0025,
+             max_depth_in_meters=1.0, icp_type='point_to_plane', only_body=False):
     """
     @param end: amount of image collection. If you want to scan body, 300 will be fine.
     @param output_folder: the folder that save rgb images and depth images collect by camera. If you don't set its value, images will be saved in $EXECUTE_PATH/dataset.
     @param voxel_size: accuracy of model. According to my test, 0.0025 is a good value to get a good balance of speed and accuracy.
     @param max_depth_in_meters: used for filter depth data. It will only process the pixels in images which are smaller than values set by user.
     @param icp_type: point cloud register methods. "point_to_plane" or "color". The "color" algorithm is under improving, I recommend "point_to_plane".
+    @param only_body: only process images with body.
     """
     pass
 ```
@@ -182,6 +184,10 @@ Please press any key to start.
 If you see such output, it means everything is ready, just press **any key** to continue.
 
 If you use it for the first time, hold you camera and don't move it, observe the speed of processing and you can estimate values you need to set when initializing `class RealsenseRecorder`. After collecting preset amount of images, it will stop automatically. 
+
+> Note: When initialize `class RealsenseRecorder`, set `only_body=True` will cause it only process body images and skip other images.
+
+> Note: During the processing, a window will pump up to show filtered color image in order to make user adjust their camera's position.
 
 Output in terminal:
 

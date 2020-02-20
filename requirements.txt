@@ -1,4 +1,0 @@
-numpy
-loguru
-open3d
-opencv-python

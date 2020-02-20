@@ -140,6 +140,20 @@ After installing all of these successfully, reboot your computer and the prepara
 
 ## 2.Online version
 
+### 2.0.Test camera
+
+**Firstly**, check whether the connection between camera and computer.(USB 3.0)
+
+**Secondly**, run `test_realsense.py`.
+
+```powershell
+>>> python test_realsense.py
+```
+
+If everything is installed successfully, there will be a window pump up, which visualizes real-time point cloud.
+
+**Thirdly**, press `Ctrl+c` to terminate it.
+
 
 
 ### 2.1.Config parameters
@@ -236,7 +250,7 @@ If you wanna optimize the mesh, please execute:
 [......]
 ```
 
-Wait a few minutes, a new mesh named online_optimized_mesh.ply is created which save optimized mesh.✨
+Wait a few minutes, a new mesh named `online_optimized_mesh.ply` is created which save optimized mesh.✨
 
 
 
@@ -333,9 +347,9 @@ Bounding box's volume:  ???
 Length of the bounding box in x, y, and z dimension:  x=???, y=???, z=???
 ```
 
-
-
 Just have a try.🚀
+
+> Note: [Meshlab](http://www.meshlab.net/#download) is also a nice choice.
 
 
 

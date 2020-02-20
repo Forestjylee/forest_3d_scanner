@@ -89,16 +89,16 @@ def color_map_optimization(mesh, rgbd_images, camera_trajectory, maximum_iterati
 
 if __name__ == "__main__":
     o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Debug)
+    DEFAULT_DATASET = join(getcwd(), "dataset")
+    
     parser = argparse.ArgumentParser()
-    parser.add_argument("-d", "--dataset", type=str, help="Dataset folder path, which saves color images and depth images", default=join(getcwd(), "dataset"))
-    parser.add_argument("-c", "--camera-intrinsic", type=str, help="Camera intrinsic matrix", default=join(getcwd(), "camera_intrinsic.json"))
+    parser.add_argument("-d", "--dataset", type=str, help="Dataset folder path, which saves color images and depth images", default=DEFAULT_DATASET)
+    parser.add_argument("-c", "--camera-intrinsic", type=str, help="Camera intrinsic matrix", default=join(DEFAULT_DATASET, "camera_intrinsic.json"))
     args = parser.parse_args()
     dataset_folder = args.dataset
     camera_intrinsic = args.camera_intrinsic
-    if exists(dataset_folder) and exists(camera_intrinsic):
-        pass
-    else:
-        print("File or folder is not exist.")
+    if not exists(dataset_folder) or not  exists(camera_intrinsic):
+        print("Dataset or camera intrinsic is not exist.")
         exit(-1)
     camera_intrinsic = o3d.io.read_pinhole_camera_intrinsic(camera_intrinsic)
     pcds, rgbd_images = load_point_clouds_and_rgbd_images(dataset_folder, voxel_size, camera_intrinsic)
@@ -118,7 +118,7 @@ if __name__ == "__main__":
     #     o3d.registration.GlobalOptimizationConvergenceCriteria(), option)
 
     mesh = generate_mesh(pose_graph, rgbd_images, camera_intrinsic, voxel_size)
-    mesh_path = join(getcwd(), "offline_raw_mesh.ply")
+    mesh_path = join(dataset_folder, "offline_raw_mesh.ply")
     o3d.io.write_triangle_mesh(mesh_path, mesh, False)
 
     # Optimizing color map
@@ -132,4 +132,4 @@ if __name__ == "__main__":
     camera_trajectory.parameters = params_list
 
     mesh = color_map_optimization(mesh, rgbd_images, camera_trajectory, 200)
-    o3d.io.write_triangle_mesh(join(getcwd(), "offline_optimized_mesh.ply"), mesh, False)
+    o3d.io.write_triangle_mesh(join(dataset_folder, "offline_optimized_mesh.ply"), mesh, False)

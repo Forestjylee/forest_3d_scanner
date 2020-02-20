@@ -18,7 +18,30 @@ Offline version is designed for other cameras or dataset, which is flexible and 
 
 ## 1.Preparation
 
-After you clone the source code from github website of whatever, you have to spend few minutes to check out if you have installed Python(3.6.x), RealSense SDK and  python package dependencies.
+After you clone the source code from [Github website](https://github.com/Forest75/forest_scanner), you have to spend few minutes to check out if you have installed Python(3.6.x), RealSense SDK and  python package dependencies.
+
+Repository's file tree as follow, please check it out.
+
+```powershell
+forest_scanner
+      │  .gitattributes
+      │  .gitignore
+      │  bounding_box.py
+      │  caffe_object_detection.py
+      │  mesh_viewer.py
+      │  offline.py
+      │  online.py
+      │  online_optimize_color_map.py
+      │  README.md
+      │  requirements.txt
+      │  utils.py
+      │
+      └─static
+          └─models
+              └─MobileNetSSD
+                      MobileNetSSD_deploy.caffemodel
+                      MobileNetSSD_deploy.prototxt
+```
 
 
 
@@ -199,12 +222,12 @@ Output in terminal:
 2020-02-18 11:53:53.343 | DEBUG    | __main__:run:371 - ----------Tear down----------
 ```
 
-From the output, we can see  that three files and a new folder have been created:
+From the output, we can see  that a new folder have been created:
 
-- `/dataset`: It contains two sub folders—color and depth. rgb images and depth images save in them respectively.
-- `camera_intrinsic.json`: Realsense camera's intrinsic information.
-- `pose_graph.json`: Transformation between adjacent images.
-- `online_raw_mesh.ply`: 3D mesh without optimization.
+- `/dataset`: It contains two sub folders—color and depth. RGB images and depth images save in them respectively.
+- `/dataset/camera_intrinsic.json`: RealSense camera's intrinsic information.
+- `/dataset/pose_graph.json`: Transformation between adjacent images.
+- `/dataset/online_raw_mesh.ply`: 3D mesh without optimization.
 
 If you wanna optimize the mesh, please execute:
 
@@ -249,7 +272,7 @@ By default, dataset folder is `$EXECUTE_PATH/dataset`, camera intrinsic is `$EXE
 [......]
 ```
 
-Two files are created:
+Two files are created in **dataset folder**:
 
 - `offline_raw_mesh.ply`: 3D mesh without optimization.
 - `offline_oprimized_mesh.ply`: 3D mesh with optimization.

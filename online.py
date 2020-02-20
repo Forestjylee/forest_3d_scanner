@@ -30,7 +30,7 @@ class RealsenseRecorder(object):
                  max_depth_in_meters=1.0, icp_type='point_to_plane', only_body=False):
         super(RealsenseRecorder, self).__init__()
         self.icp_type = icp_type
-        self.only_body - only_body
+        self.only_body = only_body
         self.voxel_size = voxel_size
         self.max_correspondence_distance_coarse = voxel_size * 15
         self.max_correspondence_distance_fine = voxel_size * 1.5      
@@ -167,7 +167,7 @@ class RealsenseRecorder(object):
 
     def __init_camera_intrinsic(self, color_frame):
         logger.debug("Saving camera intrinsic info")
-        config_path = join(getcwd(), "camera_intrinsic.json")
+        config_path = join(self.output_folder, "camera_intrinsic.json")
         self._save_intrinsic_as_json(config_path, color_frame)
         self.camera_intrinsic = o3d.io.read_pinhole_camera_intrinsic(config_path)
         logger.debug("Saved success")
@@ -369,9 +369,9 @@ class RealsenseRecorder(object):
                 cv2.waitKey(1)
 
                 if self.frame_count == self.end:
-                    result_path = join(getcwd(), "online_raw_mesh.ply")
+                    result_path = join(self.output_folder, "online_raw_mesh.ply")
                     if self.icp_type == "point_to_plane":
-                        pose_graph_path = join(getcwd(), "pose_graph.json")
+                        pose_graph_path = join(self.output_folder, "pose_graph.json")
                         o3d.io.write_pose_graph(pose_graph_path, self.pose_graph)
                         logger.info(f"Pose graph has been saved in {pose_graph_path}")
                         # self.optimize_pose_graph()
@@ -398,6 +398,6 @@ class RealsenseRecorder(object):
 
 
 if __name__ == "__main__":
-    recorder = RealsenseRecorder(end=30, icp_type='point_to_plane',
+    recorder = RealsenseRecorder(end=60, icp_type='point_to_plane',
                                  max_depth_in_meters=1.0, voxel_size=0.0025, only_body=True)
     recorder.run()

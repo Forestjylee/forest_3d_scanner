@@ -23,8 +23,7 @@ def get_intrinsic_matrix(frame):
     return out
 
 
-if __name__ == "__main__":
-
+def test_main():
     # Create a pipeline
     pipeline = rs.pipeline()
 
@@ -114,6 +113,13 @@ if __name__ == "__main__":
             print("FPS: " + str(1 / process_time.total_seconds()))
             frame_count += 1
 
+            if frame_count == 300:
+                print("---------------Test finished---------------")
+                break
     finally:
         pipeline.stop()
-    vis.destroy_window()
+    vis.destroy_window()  
+
+
+if __name__ == "__main__":
+    test_main()

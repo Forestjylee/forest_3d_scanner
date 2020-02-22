@@ -1,13 +1,18 @@
-# Open3D: www.open3d.org
-# The MIT License (MIT)
-# See license file or visit www.open3d.org for details
-
-# examples/Python/Utility/file.py
-
+import re
+import cv2
+import shutil
 from os import listdir, makedirs
 from os.path import exists, isfile, join, splitext
-import shutil
-import re
+
+
+def check_directory(directory):
+    if exists(directory):
+        flag = input(f"Clear the directory {directory} (y/n)?: ")
+        if flag in ('Y', 'y'):
+            shutil.rmtree(directory)
+        else:
+            exit(-1)
+    makedirs(directory)  
 
 
 def sorted_alphanum(file_list_ordered):

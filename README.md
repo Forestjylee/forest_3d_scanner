@@ -32,8 +32,10 @@ forest_scanner
       │  offline.py
       │  online.py
       │  online_optimize_color_map.py
+      │  preprocess_dataset.py
       │  README.md
       │  requirements.txt
+      │  test_realsense.py
       │  utils.py
       │
       └─static
@@ -258,6 +260,63 @@ Wait a few minutes, a new mesh named `online_optimized_mesh.ply` is created whic
 
 ## 3.Offline version
 
+Offline version is supposed to input dataset which contains color images and depth images.
+
+Dataset's structure:
+
+```powershell
+dataset
+│
+├─color
+│      000000.jpg
+│      000001.jpg
+│      000002.jpg
+│
+└─depth
+        000000.png
+        000001.png
+        000002.png
+```
+
+> Note: You can rename **dataset folder**'s name unrestrictedly, but **color folder** and **depth folder** cannot be renamed.
+
+### 3.0.Preprocess dataset(Optional)
+
+`preprocess_dataset.py` is used for detecting human body and extract it from input images.
+
+(Actually it support sort of objects, I will offer an interface in the future.)
+
+Usage:
+
+```powershell
+>>> python preprocess_dataset.py -h
+usage: preprocess_dataset.py [-h] [-o OLD_DATASET] [-n NEW_DATASET]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -o OLD_DATASET, --old-dataset OLD_DATASET
+                        Dataset needed to be processed.
+  -n NEW_DATASET, --new-dataset NEW_DATASET
+                        Processed dataset's folder path.
+```
+
+Preprocess dataset:
+
+```powershell
+>>> python preprocess_dataset.py -o OLD_DATASET_FOLDER_PATH -n NEW_DATASET_FOLDER_PATH
+Detect body: E:\3d_dev\my_scanner\forest_scanner\dataset\color\000120.jpg
+Detect body: E:\3d_dev\my_scanner\forest_scanner\dataset\color\000121.jpg
+Detect body: E:\3d_dev\my_scanner\forest_scanner\dataset\color\000122.jpg
+Execute success: E:\3d_dev\my_scanner\forest_scanner\new_dataset\color\000121.jpg
+Detect body: E:\3d_dev\my_scanner\forest_scanner\dataset\color\000126.jpg
+Execute success: E:\3d_dev\my_scanner\forest_scanner\new_dataset\color\000120.jpg
+[......]
+```
+
+Body detection and image procession will execute concurrently. If you want to use preprocessed dataset to reconstruct, do not forget to copy `camera_intrinsic.json` to new dataset folder.
+
+
+
 ### 3.1.Arguments
 
 Launch terminal, and then input:
@@ -349,7 +408,7 @@ Length of the bounding box in x, y, and z dimension:  x=???, y=???, z=???
 
 Just have a try.🚀
 
-> Note: [Meshlab](http://www.meshlab.net/#download) is also a nice choice.
+> Note: [Meshlab](http://www.meshlab.net/#download) is also a nice choice for visualizing mesh and point cloud.
 
 
 

@@ -363,7 +363,8 @@ class RealsenseRecorder(object):
                 bg_removed = np.where((depth_image_3d > self.max_depth_in_meters / depth_scale) | \
                         (depth_image_3d <= 0), grey_color, color_image)
 
-                bg_removed = cv2.rectangle(bg_removed, (col_min, row_min), (col_max, row_max), (255, 0, 0), 1)
+                if self.only_body:
+                    bg_removed = cv2.rectangle(bg_removed, (col_min, row_min), (col_max, row_max), (255, 0, 0), 1)
                 cv2.namedWindow('Recorder Realsense', cv2.WINDOW_AUTOSIZE)
                 cv2.imshow('Recorder Realsense', bg_removed)
                 cv2.waitKey(1)
@@ -398,6 +399,6 @@ class RealsenseRecorder(object):
 
 
 if __name__ == "__main__":
-    recorder = RealsenseRecorder(end=60, icp_type='point_to_plane',
-                                 max_depth_in_meters=1.0, voxel_size=0.0025, only_body=True)
+    recorder = RealsenseRecorder(end=200, icp_type='point_to_plane',
+                                 max_depth_in_meters=0.8, voxel_size=0.0025, only_body=False)
     recorder.run()

@@ -16,12 +16,13 @@ def load_point_clouds_and_rgbd_images(dataset_folder, voxel_size, camera_intrins
     pcds = []
     rgbd_images = []
     for i in range(len(depth_files)):
-        depth = o3d.io.read_image(depth_files[i])
         color = o3d.io.read_image(color_files[i])
+        depth = o3d.io.read_image(depth_files[i])
         rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(
             color, depth, 
             depth_trunc=1.0,
-            convert_rgb_to_intensity=False)
+            convert_rgb_to_intensity=False
+        )
         pcd = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image, camera_intrinsic)
         pcd_down = pcd.voxel_down_sample(voxel_size=voxel_size)
         pcd_down.estimate_normals()

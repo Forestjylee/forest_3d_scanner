@@ -27,7 +27,8 @@ class Preset(IntEnum):
 class RealsenseRecorder(object):
 
     def __init__(self, end, output_folder=None, voxel_size=0.0025,
-                 max_depth_in_meters=1.0, icp_type='point_to_plane', only_body=False):
+                 max_depth_in_meters=1.0, icp_type='point_to_plane',
+                 only_body=False, is_write_point_cloud=False):
         super(RealsenseRecorder, self).__init__()
         self.icp_type = icp_type
         self.only_body = only_body
@@ -38,6 +39,8 @@ class RealsenseRecorder(object):
         self.output_folder = output_folder if output_folder else join(getcwd(), "dataset")
         self.color_folder = join(self.output_folder, "color")
         self.depth_folder = join(self.output_folder, "depth")
+        self.result_path = join(self.output_folder, "online_raw_mesh.ply")
+        self.point_cloud_path = join(self.output_folder, "online_point_cloud.ply")
         
         self.end = end
         self.frame_count = 0     
@@ -48,6 +51,7 @@ class RealsenseRecorder(object):
         self.camera_intrinsic = None
         self.world_trans = np.identity(4)
         self.max_depth_in_meters = max_depth_in_meters
+        self.is_write_point_cloud = is_write_point_cloud
 
         self.__init_camera()
 
@@ -144,6 +148,12 @@ class RealsenseRecorder(object):
         for index, rgbd_image in enumerate(self.rgbd_images):
             volume.integrate(rgbd_image, self.camera_intrinsic, np.linalg.inv(self.pose_graph.nodes[index].pose))
         
+        if(self.is_write_point_cloud):
+            pcd = volume.extract_point_cloud()
+            self.cloud_base.remove_statistical_outlier(nb_neighbors=20, std_ratio=2.0)
+            o3d.io.write_point_cloud(self.point_cloud_path, pcd, False)
+            logger.info(f"Point cloud has been saved in {self.point_cloud_path}")
+
         mesh = volume.extract_triangle_mesh()
         mesh.compute_vertex_normals()
         return mesh
@@ -370,12 +380,11 @@ class RealsenseRecorder(object):
                 cv2.waitKey(1)
 
                 if self.frame_count == self.end:
-                    result_path = join(self.output_folder, "online_raw_mesh.ply")
                     if self.icp_type == "point_to_plane":
                         pose_graph_path = join(self.output_folder, "pose_graph.json")
                         o3d.io.write_pose_graph(pose_graph_path, self.pose_graph)
                         logger.info(f"Pose graph has been saved in {pose_graph_path}")
-                        # self.optimize_pose_graph()
+                        self.optimize_pose_graph()
                         mesh = self.integrate_rgbd_images()
                     elif self.icp_type == "color":
                         logger.info("Removing noise points in point cloud")
@@ -389,8 +398,8 @@ class RealsenseRecorder(object):
                             self.cloud_base, o3d.utility.DoubleVector([avg_dist, avg_dist * 2])
                         )
                     logger.info(mesh)
-                    o3d.io.write_triangle_mesh(result_path, mesh, False)
-                    logger.info(f"Result has been saved in {result_path}")
+                    o3d.io.write_triangle_mesh(self.result_path, mesh, False)
+                    logger.info(f"Result has been saved in {self.result_path}")
                     break
         finally:
             self.pipeline.stop()
@@ -400,5 +409,6 @@ class RealsenseRecorder(object):
 
 if __name__ == "__main__":
     recorder = RealsenseRecorder(end=200, icp_type='point_to_plane',
-                                 max_depth_in_meters=0.8, voxel_size=0.0025, only_body=False)
+                                 max_depth_in_meters=0.8, voxel_size=0.0025,
+                                 only_body=False, is_write_point_cloud=True)
     recorder.run()

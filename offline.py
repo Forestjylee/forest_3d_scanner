@@ -110,13 +110,13 @@ if __name__ == "__main__":
                                    max_correspondence_distance_fine)
 
     # Optimizing PoseGraph
-    # option = o3d.registration.GlobalOptimizationOption(
-    #     max_correspondence_distance=max_correspondence_distance_fine,
-    #     edge_prune_threshold=0.25,
-    #     reference_node=0)
-    # o3d.registration.global_optimization(
-    #     pose_graph, o3d.registration.GlobalOptimizationLevenbergMarquardt(),
-    #     o3d.registration.GlobalOptimizationConvergenceCriteria(), option)
+    option = o3d.registration.GlobalOptimizationOption(
+        max_correspondence_distance=max_correspondence_distance_fine,
+        edge_prune_threshold=0.25,
+        reference_node=0)
+    o3d.registration.global_optimization(
+        pose_graph, o3d.registration.GlobalOptimizationLevenbergMarquardt(),
+        o3d.registration.GlobalOptimizationConvergenceCriteria(), option)
 
     mesh = generate_mesh(pose_graph, rgbd_images, camera_intrinsic, voxel_size)
     mesh_path = join(dataset_folder, "offline_raw_mesh.ply")

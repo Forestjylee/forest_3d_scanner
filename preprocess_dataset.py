@@ -1,4 +1,5 @@
 import cv2
+import time
 import argparse
 from threading import Thread
 from os.path import join, exists
@@ -59,6 +60,7 @@ def preprocess_images(old_dataset_folder, new_dataset_folder):
         thread = Thread(target=_tailor_image_pair, args=(info_dict, ))
         thread.start()
     thread.join()
+    time.sleep(3)
 
 
 def tailor_color_image(old_color_image_filename, new_color_image_filename,

@@ -12,7 +12,9 @@ from os import getcwd, makedirs
 from os.path import join, exists, dirname
 
 from utils import get_rgbd_file_lists
+from global_config import OnlineConfig
 from caffe_object_detection import caffe_get_detector, caffe_detect_body
+from optimize_color_map import generate_camera_trajectory, color_map_optimization
 
 
 class Preset(IntEnum):
@@ -26,23 +28,28 @@ class Preset(IntEnum):
 
 class RealsenseRecorder(object):
 
-    def __init__(self, end, output_folder=None, voxel_size=0.0025,
-                 max_depth_in_meters=1.0, icp_type='point_to_plane',
-                 only_body=False, is_write_point_cloud=False):
+    def __init__(self):
         super(RealsenseRecorder, self).__init__()
-        self.icp_type = icp_type
-        self.only_body = only_body
-        self.voxel_size = voxel_size
-        self.max_correspondence_distance_coarse = voxel_size * 15
-        self.max_correspondence_distance_fine = voxel_size * 1.5      
+        online_config = OnlineConfig()
+        if(online_config.debug == True):
+            o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Debug)
 
-        self.output_folder = output_folder if output_folder else join(getcwd(), "dataset")
+        self.icp_type = online_config.icp_type
+        self.only_body = online_config.only_body
+        self.voxel_size = online_config.voxel_size
+        self.max_correspondence_distance_coarse = self.voxel_size * online_config.max_correspondence_distance_coarse
+        self.max_correspondence_distance_fine = self.voxel_size * online_config.max_correspondence_distance_fine
+
+        self.output_folder = online_config.output_folder
         self.color_folder = join(self.output_folder, "color")
         self.depth_folder = join(self.output_folder, "depth")
-        self.result_path = join(self.output_folder, "online_raw_mesh.ply")
-        self.point_cloud_path = join(self.output_folder, "online_point_cloud.ply")
-        
-        self.end = end
+        self.result_path = join(self.output_folder, online_config.raw_mesh_filename)
+        self.pose_graph_path = join(self.output_folder, online_config.pose_graph_filename)
+        self.point_cloud_path = join(self.output_folder, online_config.point_cloud_filename)
+        self.optimized_mesh_path = join(self.output_folder, online_config.optimized_mesh_filename)
+        self.camera_intrinsic_path = join(self.output_folder, online_config.camera_intrinsic_filename)
+
+        self.end = online_config.images_count
         self.frame_count = 0     
         self.prev_cloud = None
         self.cloud_base = None
@@ -50,13 +57,15 @@ class RealsenseRecorder(object):
         self.rgbd_images = []
         self.camera_intrinsic = None
         self.world_trans = np.identity(4)
-        self.max_depth_in_meters = max_depth_in_meters
-        self.is_write_point_cloud = is_write_point_cloud
+        self.max_depth_in_meters = online_config.max_depth_in_meters
+        self.is_write_point_cloud = online_config.is_output_point_cloud
+
+        self.is_optimize_mesh = online_config.is_optimize_mesh
+        self.optimization_iteration_count = online_config.optimization_iteration_count
 
         self.__init_camera()
 
         self.__init_object_detector()
-
 
     def create_pcd_from_rgbd_image(self, rgbd_image):
         pcd = o3d.geometry.PointCloud.create_from_rgbd_image(
@@ -148,7 +157,7 @@ class RealsenseRecorder(object):
         for index, rgbd_image in enumerate(self.rgbd_images):
             volume.integrate(rgbd_image, self.camera_intrinsic, np.linalg.inv(self.pose_graph.nodes[index].pose))
         
-        if(self.is_write_point_cloud):
+        if self.is_write_point_cloud:
             pcd = volume.extract_point_cloud()
             self.cloud_base.remove_statistical_outlier(nb_neighbors=20, std_ratio=2.0)
             o3d.io.write_point_cloud(self.point_cloud_path, pcd, False)
@@ -177,10 +186,9 @@ class RealsenseRecorder(object):
 
     def __init_camera_intrinsic(self, color_frame):
         logger.debug("Saving camera intrinsic info")
-        config_path = join(self.output_folder, "camera_intrinsic.json")
-        self._save_intrinsic_as_json(config_path, color_frame)
-        self.camera_intrinsic = o3d.io.read_pinhole_camera_intrinsic(config_path)
-        logger.debug("Saved success")
+        self._save_intrinsic_as_json(self.camera_intrinsic_path, color_frame)
+        self.camera_intrinsic = o3d.io.read_pinhole_camera_intrinsic(self.camera_intrinsic_path)
+        logger.debug(f"Saved success to {self.camera_intrinsic_path}")
 
     def __init_pose_graph(self):
         self.pose_graph = o3d.registration.PoseGraph()
@@ -344,6 +352,7 @@ class RealsenseRecorder(object):
                 if self.frame_count == 0:
                     self.cloud_base = current_pcd
                     self.prev_cloud = current_pcd
+                    first_rgbd_image = rgbd_image
                 else:
                     if self.icp_type == 'color':
                         current_transformation = self.register_color_icp(
@@ -381,9 +390,8 @@ class RealsenseRecorder(object):
 
                 if self.frame_count == self.end:
                     if self.icp_type == "point_to_plane":
-                        pose_graph_path = join(self.output_folder, "pose_graph.json")
-                        o3d.io.write_pose_graph(pose_graph_path, self.pose_graph)
-                        logger.info(f"Pose graph has been saved in {pose_graph_path}")
+                        o3d.io.write_pose_graph(self.pose_graph_path, self.pose_graph)
+                        logger.info(f"Pose graph has been saved in {self.pose_graph_path}")
                         self.optimize_pose_graph()
                         mesh = self.integrate_rgbd_images()
                     elif self.icp_type == "color":
@@ -400,6 +408,14 @@ class RealsenseRecorder(object):
                     logger.info(mesh)
                     o3d.io.write_triangle_mesh(self.result_path, mesh, False)
                     logger.info(f"Result has been saved in {self.result_path}")
+
+                    if self.icp_type == "point_to_plane" and self.is_optimize_mesh:
+                        logger.info("Start optimizing raw model mesh...")
+                        camera_trajectory = generate_camera_trajectory(self.camera_intrinsic, self.pose_graph)
+                        self.rgbd_images.insert(0, first_rgbd_image)
+                        optimized_mesh = color_map_optimization(mesh, self.rgbd_images, camera_trajectory, self.optimization_iteration_count)
+                        o3d.io.write_triangle_mesh(self.optimized_mesh_path, optimized_mesh, False)
+                        logger.info(f"Optimized mesh has been saved in {self.optimized_mesh_path}")
                     break
         finally:
             self.pipeline.stop()
@@ -408,7 +424,5 @@ class RealsenseRecorder(object):
 
 
 if __name__ == "__main__":
-    recorder = RealsenseRecorder(end=200, icp_type='point_to_plane',
-                                 max_depth_in_meters=0.8, voxel_size=0.0025,
-                                 only_body=False, is_write_point_cloud=True)
+    recorder = RealsenseRecorder()
     recorder.run()

@@ -4,11 +4,12 @@ import open3d as o3d
 from os import getcwd
 from os.path import join, exists
 from utils import get_rgbd_file_lists
+from global_config import OfflineConfig
 
-
-voxel_size = 0.0025
-max_correspondence_distance_coarse = voxel_size * 15
-max_correspondence_distance_fine = voxel_size * 1.5
+offline_config  = OfflineConfig()
+voxel_size = offline_config.voxel_size
+max_correspondence_distance_coarse = voxel_size * offline_config.max_correspondence_distance_coarse
+max_correspondence_distance_fine = voxel_size * offline_config.max_correspondence_distance_fine
 
 
 def load_point_clouds_and_rgbd_images(dataset_folder, voxel_size, camera_intrinsic):
@@ -66,7 +67,7 @@ def full_registration(pcds, max_correspondence_distance_coarse,
     return pose_graph
 
 
-def generate_mesh(pose_graph, rgbd_images, camera_intrinsic, voxel_size):
+def generate_mesh(pose_graph, rgbd_images, camera_intrinsic, voxel_size, with_point_cloud=False):
     volume = o3d.integration.ScalableTSDFVolume(
         voxel_length=voxel_size,
         sdf_trunc=0.01,
@@ -77,7 +78,11 @@ def generate_mesh(pose_graph, rgbd_images, camera_intrinsic, voxel_size):
         volume.integrate(rgbd_images[i], camera_intrinsic, np.linalg.inv(pose))
     mesh = volume.extract_triangle_mesh()
     mesh.compute_vertex_normals()
-    return mesh
+    if with_point_cloud:
+        pcd = volume.extract_point_cloud()
+        return mesh, pcd
+    else:
+        return mesh, None
 
 
 def color_map_optimization(mesh, rgbd_images, camera_trajectory, maximum_iteration=200):
@@ -89,15 +94,11 @@ def color_map_optimization(mesh, rgbd_images, camera_trajectory, maximum_iterati
 
 
 if __name__ == "__main__":
-    o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Debug)
-    DEFAULT_DATASET = join(getcwd(), "dataset")
-    
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-d", "--dataset", type=str, help="Dataset folder path, which saves color images and depth images", default=DEFAULT_DATASET)
-    parser.add_argument("-c", "--camera-intrinsic", type=str, help="Camera intrinsic matrix", default=join(DEFAULT_DATASET, "camera_intrinsic.json"))
-    args = parser.parse_args()
-    dataset_folder = args.dataset
-    camera_intrinsic = args.camera_intrinsic
+    if(offline_config.debug == True):
+        o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Debug)
+
+    dataset_folder = offline_config.dataset
+    camera_intrinsic = join(dataset_folder, offline_config.camera_intrinsic_filename)
     if not exists(dataset_folder) or not  exists(camera_intrinsic):
         print("Dataset or camera intrinsic is not exist.")
         exit(-1)
@@ -118,19 +119,36 @@ if __name__ == "__main__":
         pose_graph, o3d.registration.GlobalOptimizationLevenbergMarquardt(),
         o3d.registration.GlobalOptimizationConvergenceCriteria(), option)
 
-    mesh = generate_mesh(pose_graph, rgbd_images, camera_intrinsic, voxel_size)
-    mesh_path = join(dataset_folder, "offline_raw_mesh.ply")
+    # save pose graph
+    pose_graph_path = join(dataset_folder, offline_config.pose_graph_filename)
+    o3d.io.write_pose_graph(pose_graph_path, pose_graph)
+    print(f"Pose graph has been saved in {pose_graph_path}")
+
+    mesh, pcd = generate_mesh(pose_graph, rgbd_images, camera_intrinsic, 
+                              voxel_size, with_point_cloud=offline_config.is_output_point_cloud)
+    mesh_path = join(dataset_folder, offline_config.raw_mesh_filename)
     o3d.io.write_triangle_mesh(mesh_path, mesh, False)
+    print(f"Raw mesh has been saved in {mesh_path}")
+
+    # write point cloud
+    if pcd is not None:
+        pcd.remove_statistical_outlier(nb_neighbors=20, std_ratio=2.0)
+        pcd_path = join(dataset_folder, offline_config.point_cloud_filename)
+        o3d.io.write_point_cloud(pcd_path, pcd, False)
+        print(f"Point cloud has been saved in {pcd_path}")
 
     # Optimizing color map
-    camera_trajectory = o3d.camera.PinholeCameraTrajectory()
-    params_list = []
-    for node in pose_graph.nodes:
-        camera_params = o3d.camera.PinholeCameraParameters()
-        camera_params.intrinsic = camera_intrinsic
-        camera_params.extrinsic = np.linalg.inv(node.pose)
-        params_list.append(camera_params)
-    camera_trajectory.parameters = params_list
+    if offline_config.is_optimize_mesh:
+        camera_trajectory = o3d.camera.PinholeCameraTrajectory()
+        params_list = []
+        for node in pose_graph.nodes:
+            camera_params = o3d.camera.PinholeCameraParameters()
+            camera_params.intrinsic = camera_intrinsic
+            camera_params.extrinsic = np.linalg.inv(node.pose)
+            params_list.append(camera_params)
+        camera_trajectory.parameters = params_list
 
-    mesh = color_map_optimization(mesh, rgbd_images, camera_trajectory, 200)
-    o3d.io.write_triangle_mesh(join(dataset_folder, "offline_optimized_mesh.ply"), mesh, False)
+        mesh = color_map_optimization(mesh, rgbd_images, camera_trajectory, offline_config.optimization_iteration_count)
+        mesh_path = join(dataset_folder, offline_config.optimized_mesh_filename)
+        o3d.io.write_triangle_mesh(mesh_path, mesh, False)
+        print(f"Optimized mesh has been saved in {mesh_path}")

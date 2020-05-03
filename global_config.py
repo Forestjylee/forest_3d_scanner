@@ -49,6 +49,7 @@ class OnlineConfig(BaseConfig):
         super(OnlineConfig, self).__init__();
         self.version = 'online'
         self.only_body = False
+        self.only_collect = False
         self.images_count = 0
         self.max_depth_in_meters = 0.0
         self.icp_type = ''
@@ -64,6 +65,8 @@ class OnlineConfig(BaseConfig):
             raise ValueError("icp_type in config.ini is not support, please choose another one.")
         self.icp_type = configs['icp_type']
         self.max_depth_in_meters = float(configs['max_depth_in_meters'])
+        self.only_body = False if configs['only_person']=='no' else True
+        self.only_collect = False if configs['only_collect']=='no' else True
 
         if not os.path.isabs(configs['output_folder']):
             self.output_folder = os.path.join(os.getcwd(), configs['output_folder'])

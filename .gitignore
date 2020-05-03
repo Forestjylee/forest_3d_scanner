@@ -3,4 +3,6 @@
 *.json
 *.jpg
 *.png
+*.zip
+*.ini
 /dataset

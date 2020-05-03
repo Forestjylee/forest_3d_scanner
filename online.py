@@ -36,6 +36,7 @@ class RealsenseRecorder(object):
 
         self.icp_type = online_config.icp_type
         self.only_body = online_config.only_body
+        self.only_collect = online_config.only_collect
         self.voxel_size = online_config.voxel_size
         self.max_correspondence_distance_coarse = self.voxel_size * online_config.max_correspondence_distance_coarse
         self.max_correspondence_distance_fine = self.voxel_size * online_config.max_correspondence_distance_fine
@@ -154,8 +155,11 @@ class RealsenseRecorder(object):
             color_type = o3d.integration.TSDFVolumeColorType.RGB8
         )
 
-        for index, rgbd_image in enumerate(self.rgbd_images):
-            volume.integrate(rgbd_image, self.camera_intrinsic, np.linalg.inv(self.pose_graph.nodes[index].pose))
+        # for index, rgbd_image in enumerate(self.rgbd_images):
+        #     volume.integrate(rgbd_image, self.camera_intrinsic, np.linalg.inv(self.pose_graph.nodes[index].pose))
+        for i in range(len(self.pose_graph.nodes)):
+            pose = self.pose_graph.nodes[i].pose
+            volume.integrate(self.rgbd_images[i], self.camera_intrinsic, np.linalg.inv(pose))
         
         if self.is_write_point_cloud:
             pcd = volume.extract_point_cloud()
@@ -309,11 +313,12 @@ class RealsenseRecorder(object):
                 # Init camera intrinsic and pose graph
                 if not INIT_FLAG:
                     self.__init_camera_intrinsic(color_frame)
-                    if self.icp_type == 'point_to_plane':
-                        self.__init_pose_graph()
-                        logger.debug("Using point to plane ICP registration")
-                    else:
-                        logger.debug("Using color ICP registration")
+                    if not self.only_collect:
+                        if self.icp_type == 'point_to_plane':
+                            self.__init_pose_graph()
+                            logger.debug("Using point to plane ICP registration")
+                        else:
+                            logger.debug("Using color ICP registration")
                     logger.debug("----------Start streaming----------")
                     input("Please press any key to start.")
                     INIT_FLAG = True
@@ -341,6 +346,13 @@ class RealsenseRecorder(object):
                 cv2.imwrite(depth_path, depth_image)
                 logger.info(f"Saved color+depth image {self.frame_count}")
 
+                if self.only_collect:
+                    self.frame_count += 1
+                    if self.frame_count == self.end:
+                        break
+                    else:
+                        continue
+
                 # Create current rgbd image
                 rgbd_image = self.create_rgbd_image(
                     color_path, depth_path
@@ -352,7 +364,6 @@ class RealsenseRecorder(object):
                 if self.frame_count == 0:
                     self.cloud_base = current_pcd
                     self.prev_cloud = current_pcd
-                    first_rgbd_image = rgbd_image
                 else:
                     if self.icp_type == 'color':
                         current_transformation = self.register_color_icp(
@@ -369,9 +380,8 @@ class RealsenseRecorder(object):
                         self.world_trans = np.dot(transformation_icp, self.world_trans)
                         self.update_pose_graph(transformation_icp, information_icp)
                         self.prev_cloud = deepcopy(current_pcd)
-                        self.rgbd_images.append(rgbd_image)
-
                     logger.info(f"Register frame {self.frame_count} success") 
+                self.rgbd_images.append(rgbd_image)
                 self.frame_count += 1
 
                 # Display background removed color image currently
@@ -412,7 +422,6 @@ class RealsenseRecorder(object):
                     if self.icp_type == "point_to_plane" and self.is_optimize_mesh:
                         logger.info("Start optimizing raw model mesh...")
                         camera_trajectory = generate_camera_trajectory(self.camera_intrinsic, self.pose_graph)
-                        self.rgbd_images.insert(0, first_rgbd_image)
                         optimized_mesh = color_map_optimization(mesh, self.rgbd_images, camera_trajectory, self.optimization_iteration_count)
                         o3d.io.write_triangle_mesh(self.optimized_mesh_path, optimized_mesh, False)
                         logger.info(f"Optimized mesh has been saved in {self.optimized_mesh_path}")

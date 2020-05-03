@@ -32,6 +32,18 @@ def load_point_clouds_and_rgbd_images(dataset_folder, voxel_size):
     return pcds, rgbd_images
 
 
+def generate_camera_trajectory(camera_intrinsic, pose_graph):
+    camera_trajectory = o3d.camera.PinholeCameraTrajectory()
+    params_list = []
+    for node in pose_graph.nodes:
+        camera_params = o3d.camera.PinholeCameraParameters()
+        camera_params.intrinsic = camera_intrinsic
+        camera_params.extrinsic = np.linalg.inv(node.pose)
+        params_list.append(camera_params)
+    camera_trajectory.parameters = params_list
+    return camera_trajectory
+
+
 def color_map_optimization(mesh, rgbd_images, camera_trajectory, maximum_iteration=200):
     option = o3d.color_map.ColorMapOptimizationOption()
     option.maximum_iteration = maximum_iteration
@@ -51,19 +63,12 @@ if __name__ == "__main__":
         exit(-1)
 
     dataset_folder = args.dataset
-    camera_trajectory = o3d.camera.PinholeCameraTrajectory()
     camera_intrinsic = o3d.io.read_pinhole_camera_intrinsic(join(dataset_folder, "camera_intrinsic.json"))
     pose_graph = o3d.io.read_pose_graph(join(dataset_folder, "pose_graph.json"))
+    camera_trajectory = generate_camera_trajectory(camera_intrinsic, pose_graph)   
+    
     mesh = o3d.io.read_triangle_mesh(join(dataset_folder, "online_raw_mesh.ply"))
     pcds_down, rgbd_images = load_point_clouds_and_rgbd_images(dataset_folder, voxel_size)
-
-    params_list = []
-    for node in pose_graph.nodes:
-        camera_params = o3d.camera.PinholeCameraParameters()
-        camera_params.intrinsic = camera_intrinsic
-        camera_params.extrinsic = np.linalg.inv(node.pose)
-        params_list.append(camera_params)
-    camera_trajectory.parameters = params_list
 
     mesh = color_map_optimization(mesh, rgbd_images, camera_trajectory, 200)
     o3d.io.write_triangle_mesh(join(dataset_folder, "online_optimized_mesh.ply"), mesh, False)

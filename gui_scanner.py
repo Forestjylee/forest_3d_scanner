@@ -4,6 +4,8 @@ from os import getcwd
 from os.path import join
 from online import RealsenseRecorder
 from test_realsense import test_main
+from offline import offline_main
+from global_config import OnlineConfig, OfflineConfig
 
 
 sg.ChangeLookAndFeel("LightGreen")
@@ -45,20 +47,21 @@ def gui_ouput(exec_function):
 
 
 def gui_online_version():
+    configer = OnlineConfig()
     layout = [      
         [sg.T()],
         [
             sg.T(size=(2, 1)),
             sg.Text('Output folder:', size=(11, 1)), 
-            sg.Input(size=(43, 1), font=('', 11), default_text=join(getcwd(), "dataset")), 
+            sg.Input(size=(43, 1), font=('', 11), default_text=configer.output_folder), 
             sg.FolderBrowse()
         ],
         [sg.T(font=('', 5))],
         [
             sg.T(size=(2, 1)),
-            sg.Text('images:'), sg.Input(size=(6, 1), default_text="30"), sg.T(size=(2, 1)),
-            sg.Text('voxel size:'), sg.Input(size=(8, 1), default_text="0.0025"),sg.T(size=(2, 1)),
-            sg.Text('max depth:'), sg.Input(size=(4, 1), default_text="1.0"), sg.Text('m'),
+            sg.Text('images:'), sg.Input(size=(6, 1), default_text=str(configer.images_count)), sg.T(size=(2, 1)),
+            sg.Text('voxel size:'), sg.Input(size=(8, 1), default_text=str(configer.voxel_size)),sg.T(size=(2, 1)),
+            sg.Text('max depth:'), sg.Input(size=(4, 1), default_text=str(configer.max_depth_in_meters)), sg.Text('m'),
         ],
         [sg.T(font=('', 5))],
         [
@@ -67,7 +70,7 @@ def gui_online_version():
             sg.InputCombo(('point to plane ICP', 'color ICP'), readonly=True, size=(15, 1), 
                           default_value='point to plane ICP',font=('Helvetica', 10)),
             sg.T(size=(8, 1)),
-            sg.Checkbox('only scan body', default=True)
+            sg.Checkbox('only scan body', default=configer.only_body)
         ],
         [sg.T(font=('', 7))],
         [
@@ -86,19 +89,25 @@ def gui_online_version():
         event, values = window.read()
         if event == None or event == 'Exit':      
             break          
-        if event == 'test camera':
+        elif event == 'test camera':
             window.Hide()
             gui_ouput(exec_function=test_main)
+            window.UnHide()
+        elif event == 'start capturing':
+            rc = RealsenseRecorder()
+            window.Hide()
+            gui_ouput(exec_function=rc.run)
             window.UnHide()
 
 
 def gui_offline_version():
+    configer = OfflineConfig()
     layout = [      
         [sg.T()],
         [
             sg.T(size=(2, 1)),
-            sg.Text('Output folder:', size=(11, 1)), 
-            sg.Input(size=(43, 1), font=('', 11), default_text=join(getcwd(), "dataset")), 
+            sg.Text('Dataset folder:', size=(11, 1)), 
+            sg.Input(size=(43, 1), font=('', 11), default_text=configer.dataset), 
             sg.FolderBrowse()
         ],
         [sg.T(font=('', 5))],
@@ -107,6 +116,7 @@ def gui_offline_version():
             sg.Text('images:'), sg.Input(size=(6, 1), default_text="30"), sg.T(size=(2, 1)),
             sg.Text('voxel size:'), sg.Input(size=(8, 1), default_text="0.0025"),sg.T(size=(2, 1)),
             sg.Text('max depth:'), sg.Input(size=(4, 1), default_text="1.0"), sg.Text('m'),
+
         ],
         [sg.T(font=('', 5))],
         [
@@ -128,9 +138,9 @@ def gui_offline_version():
         event, values = window.read()
         if event == None or event == 'Exit':      
             break          
-        if event == 'test camera':
+        elif event == 'start':
             window.Hide()
-            gui_ouput(exec_function=test_main)
+            gui_ouput(exec_function=offline_main)
             window.UnHide()
 
 

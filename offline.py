@@ -13,6 +13,7 @@ max_correspondence_distance_fine = voxel_size * offline_config.max_correspondenc
 
 
 def load_point_clouds_and_rgbd_images(dataset_folder, voxel_size, camera_intrinsic):
+    print(f"Loading images from {dataset_folder}...")
     color_files, depth_files = get_rgbd_file_lists(dataset_folder)
     pcds = []
     rgbd_images = []
@@ -29,6 +30,7 @@ def load_point_clouds_and_rgbd_images(dataset_folder, voxel_size, camera_intrins
         pcd_down.estimate_normals()
         pcds.append(pcd_down)
         rgbd_images.append(rgbd_image)
+        print(f"Load color+depth image {i} successfully.")
     return pcds, rgbd_images
 
 
@@ -53,6 +55,7 @@ def full_registration(pcds, max_correspondence_distance_coarse,
     odometry = np.identity(4)
     pose_graph.nodes.append(o3d.registration.PoseGraphNode(odometry))
     for i in range(len(pcds)-1):
+        print(f"Calculating transformation matrix between image {i} and image {i+1}.")
         transformation_icp, information_icp = pairwise_registration(
             pcds[i], pcds[i+1]
         )
@@ -74,6 +77,7 @@ def generate_mesh(pose_graph, rgbd_images, camera_intrinsic, voxel_size, with_po
         color_type=o3d.integration.TSDFVolumeColorType.RGB8
     )
     for i in range(len(pose_graph.nodes)):
+        print(f"Integrating pose graph node {i}.")
         pose = pose_graph.nodes[i].pose
         volume.integrate(rgbd_images[i], camera_intrinsic, np.linalg.inv(pose))
     mesh = volume.extract_triangle_mesh()
@@ -86,6 +90,7 @@ def generate_mesh(pose_graph, rgbd_images, camera_intrinsic, voxel_size, with_po
 
 
 def color_map_optimization(mesh, rgbd_images, camera_trajectory, maximum_iteration=200):
+    print(f"Optimizing mesh, this may cost a bit time, please wait...")
     option = o3d.color_map.ColorMapOptimizationOption()
     option.maximum_iteration = maximum_iteration
     option.non_rigid_camera_coordinate = False
@@ -93,7 +98,7 @@ def color_map_optimization(mesh, rgbd_images, camera_trajectory, maximum_iterati
     return mesh
 
 
-if __name__ == "__main__":
+def offline_main():
     if(offline_config.debug == True):
         o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Debug)
 
@@ -152,3 +157,8 @@ if __name__ == "__main__":
         mesh_path = join(dataset_folder, offline_config.optimized_mesh_filename)
         o3d.io.write_triangle_mesh(mesh_path, mesh, False)
         print(f"Optimized mesh has been saved in {mesh_path}")
+
+
+
+if __name__ == "__main__":
+    offline_main()

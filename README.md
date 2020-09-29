@@ -6,11 +6,11 @@
 
 ## 0.Abstract
 
-This project is about 3D reconstruction, which contains two main parts. One is online version, the other is offline version. 
+This project is about 3D reconstruction, which contains two versions. One is online version, the other is offline version. 
 
-Online version which has a strong connection with **Intel RealSense D415 depth camera** can process RGB images and depth images while collecting them, cost nearly no time to get a raw 3D mesh. If you want to improve the performance of the raw mesh, run `online_optimize_color_map.py` which will costs a few minutes.
+Online version only available for **Intel RealSense D-series depth camera**, which can use RGB images and depth images to construct 3D mesh while collecting them, cost nearly no time. If you want to improve the performance of the raw mesh, run `online_optimize_color_map.py` which will costs a few minutes.
 
-Offline version is designed for other cameras or datasets, which is flexible and light. User input merely RGB images, depth images and camera intrinsic, after few minutes, can get a optimized 3D mesh directly.
+Offline version is designed for other cameras or datasets, which is flexible and light. What you need to do is just put RGB images, depth images and camera intrinsic in one folder, run the program and wait for few minutes, then you can get a 3D mesh.
 
 
 
@@ -22,27 +22,29 @@ After you clone the source code from [Github website](https://github.com/Forest7
 
 Repository's file tree as follow, please check it out.
 
-```powershell
+```shell
 forest_scanner
-      │  .gitattributes
-      │  .gitignore
-      │  bounding_box.py
-      │  caffe_object_detection.py
-      │  mesh_viewer.py
-      │  offline.py
-      │  online.py
-      │  online_optimize_color_map.py
-      │  preprocess_dataset.py
-      │  README.md
-      │  requirements.txt
-      │  test_realsense.py
-      │  utils.py
-      │
-      └─static
-          └─models
-              └─MobileNetSSD
-                      MobileNetSSD_deploy.caffemodel
-                      MobileNetSSD_deploy.prototxt
+      ├── LICENSE
+      ├── README.md
+      ├── bounding_box.py
+      ├── caffe_object_detection.py
+      ├── config.info
+      ├── config.ini
+      ├── global_config.py
+      ├── gui_scanner.py
+      ├── mesh_viewer.py
+      ├── offline.py
+      ├── online.py
+      ├── optimize_color_map.py
+      ├── preprocess_dataset.py
+      ├── requirements.txt
+      ├── static
+      │   └── models
+      │       └── MobileNetSSD
+      │           ├── MobileNetSSD_deploy.caffemodel
+      │           └── MobileNetSSD_deploy.prototxt
+      ├── test_realsense.py
+      └── utils.py
 ```
 
 
@@ -115,16 +117,17 @@ Launch you terminal
 If you encounter any problems during installation, try to install that package merely or search solutions on the Internet.
 
 > **Note: If your speed of downloading packages is slow, you can change your pip to download  from mirror source.**
-
-- **Firstly**, installing pqi.
-- **Secondly**, use "`pqi use`" to change to a faster mirror source.
-
-```powershell
->>> pip install pqi
-[......]
->>> pqi use douban
-[......]
-```
+>
+> - **Firstly**, installing pqi.
+> - **Secondly**, use "`pqi use`" to change to a faster mirror source.
+>
+> ```powershell
+> >>> pip install pqi
+> [......]
+> >>> pqi use douban
+> [......]
+> ```
+>
 
 
 
@@ -158,38 +161,37 @@ If everything is installed successfully, there will be a window pump up, which v
 
 
 
-### 2.1.Config parameters
+### 2.1.Config
 
-In the online.py, you can see a class named `RealsenseRecorder`. Now, I am gonna explain some important parameters when you initialize it.
+In `config.ini` , you can see these parameters
 
-```python
-def __init__(self, end, output_folder=None, voxel_size=0.0025,
-             max_depth_in_meters=1.0, icp_type='point_to_plane', only_body=False):
-    """
-    @param end: amount of image collection. If you want to scan body, 300 will be fine.
-    @param output_folder: the folder that save rgb images and depth images collect by camera. If you don't set its value, images will be saved in $EXECUTE_PATH/dataset.
-    @param voxel_size: accuracy of model. According to my test, 0.0025 is a good value to get a good balance of speed and accuracy.
-    @param max_depth_in_meters: used for filter depth data. It will only process the pixels in images which are smaller than values set by user.
-    @param icp_type: point cloud register methods. "point_to_plane" or "color". The "color" algorithm is under improving, I recommend "point_to_plane".
-    @param only_body: only process images with body.
-    """
-    pass
+```ini
+[online]
+debug = no                                                # turn on debug mode,associate with log level
+only_person = yes                                         # if only capture images that has person in it
+images_count = 50                                         # the amount of images that camera will capture 
+voxel_size = 0.0025                                       # the size of one piece of point cloud(you can try 0.002、0.0025、0.003、...)
+max_depth_in_meters = 1.0                                 # max validate depth of images
+max_correspondence_distance_fine_coeficient = 1.5         # coefficient of ICP algorithm(fine/accuracy alignment)
+max_correspondence_distance_coarse_coefficient = 15       # coefficient of ICP algorithm(coarse alignment)
+icp_type = point_to_plane                                 # point_to_plane or color
+is_output_point_cloud = no                                # if output point cloud file of model
+is_optimize_mesh = no                                     # if optimize raw mesh of model(takes few time)
+optimization_iteration_count = 200                        # coefficient of optimization algorithm.You can get better result if set it bigger but it will cost more time.
+# ouput files name
+output_folder = dataset                                   # folder that stores all output files(Please use absolute file path, or it will store in $EXECUTE_PATH/{output_folder})
+pose_graph = pose_graph.json                              # pose graph's file name
+camera_intrinsic = camera_intrinsic.json                  # camera intrinsic's file name
+raw_mesh_filename = online_raw_mesh.ply                   # raw mesh's file name
+point_cloud_filename = online_point_cloud.ply             # point cloud's file name
+optimized_mesh_filename = online_optimized_mesh.ply       # optimized mesh's file name
 ```
+
+Feel free to change them~
 
 
 
 ### 2.2.Run
-
-In the main function in `online.py`, you can see:
-
-```python
-if __name__ == "__main__":
-    recorder = RealsenseRecorder(end=30, icp_type='point_to_plane',
-                                 max_depth_in_meters=1.0, voxel_size=0.0025)
-    recorder.run()
-```
-
-It means it will collect 30 images for reconstruction, you can have a try.
 
 Launch terminal and input
 
@@ -220,11 +222,11 @@ You will see debug information:
 Please press any key to start.
 ```
 
-If you see such output, it means everything is ready, just press **any key** to continue.
+If you see such output, it means everything is ok, just press **any key** to continue.
 
-If you use it for the first time, hold you camera and don't move it, observe the speed of processing and you can estimate values you need to set when initializing `class RealsenseRecorder`. After collecting preset amount of images, it will stop automatically. 
+If you use it for the first time, hold you camera and don't move it, observe the speed of processing and you can estimate values you need to set in `config.ini`. After collecting preset amount of images, it will stop automatically. 
 
-> Note: When initialize `class RealsenseRecorder`, set `only_body=True` will cause it only process body images and skip other images.
+> Note: `only_body=True` will only process human body images and skip other images.
 
 > Note: During the processing, a window will pump up to show filtered color image in order to make user adjust their camera's position.
 
@@ -317,24 +319,29 @@ Body detection and image procession will execute concurrently. If you want to us
 
 
 
-### 3.1.Arguments
+### 3.1.Config
 
-Launch terminal, and then input:
+As same as online version, you can see some parameters in `config.ini`
 
-```powershell
->>> python offline.py -h
-usage: offline.py [-h] [-d DATASET] [-c CAMERA_INTRINSIC]
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -d DATASET, --dataset DATASET
-                        Dataset folder path, which saves color images and
-                        depth images
-  -c CAMERA_INTRINSIC, --camera-intrinsic CAMERA_INTRINSIC
-                        Camera intrinsic matrix
+```ini
+[offline]
+debug = no                                                # turn on debug mode,associate with log level
+voxel_size = 0.0025                                       # the size of one piece of point cloud(you can try 0.002、0.0025、0.003、...)
+max_correspondence_distance_fine_coeficient = 1.5         # coefficient of ICP algorithm(fine/accuracy alignment)
+max_correspondence_distance_coarse_coefficient = 15       # coefficient of ICP algorithm(coarse alignment)
+is_output_point_cloud = no                                # if output point cloud file of model
+is_optimize_mesh = yes                                    # if optimize raw mesh of model(takes few time)
+optimization_iteration_count = 200                        # coefficient of optimization algorithm.You can get better result if set it bigger but it will cost more time.
+# files name
+dataset = dataset                                         # folder that stores all output files(Please use absolute file path, or it will store in $EXECUTE_PATH/{output_folder})
+camera_intrinsic = camera_intrinsic.json                  # camera intrinsic's file name needed to be input
+pose_graph = pose_graph.json                              # pose graph's file name needed to be input
+raw_mesh_filename = offline_raw_mesh.ply                  #  raw mesh's file name
+point_cloud_filename = offline_point_cloud.ply            # point cloud's file name
+optimized_mesh_filename = offline_optimized_mesh.ply      # optimized mesh's file name
 ```
 
-By default, dataset folder is `$EXECUTE_PATH/dataset`, camera intrinsic is `$EXECUTE_PATH/camera_intrisic.json`.
+Just change them whatever you want.👨‍💻
 
 
 
@@ -354,9 +361,23 @@ Two files are created in **dataset folder**:
 
 
 
-## 4.Visualization
+## 4.Simple GUI
 
-### 4.1.Normal mesh
+`gui_scanner.py` is a really simple gui for forest_scanner(both online and offline version), based on PySimpleGUI.
+
+> WARNING:  It is under developing and executing only according to `config.ini`, which means input is not used. 
+
+If you are interested in this module, feel free to contact me.
+
+
+
+
+
+## 5.Visualization
+
+### 5.1.Normal mesh
+
+> Open3D now provides 3D viewer intuitively, you can use it directly.
 
 `mesh_viewer.py` is used for mesh visualization.
 
@@ -385,7 +406,7 @@ In addition, use "`-display`" argument to show animation visualization.
 
 
 
-### 4.2.Mesh with bounding box
+### 5.2.Mesh with bounding box
 
 `bounding_box.py` is used for draw mesh's bounding box.
 
@@ -416,6 +437,7 @@ Just have a try.🚀
 
 ## 5.Others
 
-With a 3D model, you can use it for volume calculation, 3D print and so on. This project mainly use open3d to process point cloud, register them and optimize them. By the way, open3d is such a wonderful package for 3D data processing. If you find any problems or bugs, please email me at 📧forestjylee@qq.com
+With a 3D model, you can use it for volume calculation, 3D print and so on. This project mainly use open3d to process point cloud, register them and optimize them. If you find any problems or bugs, please email me at 📧forestjylee@qq.com
 
 Enjoy it!😉
+

@@ -228,7 +228,7 @@ If you use it for the first time, hold you camera and don't move it, observe the
 
 > Note: `only_body=True` will only process human body images and skip other images.
 
-> Note: During the processing, a window will pump up to show filtered color image in order to make user adjust their camera's position.
+> Note: During the processing, a window will pop up which shows filtered color image in order to make user adjust their camera's position.
 
 Output in terminal:
 

@@ -29,7 +29,8 @@ optimization_iteration_count = 200                        # coefficient of optim
 # files name
 dataset = dataset                                         # folder that stores all output files(Please use absolute file path, or it will store in $EXECUTE_PATH/{output_folder})
 camera_intrinsic = camera_intrinsic.json                  # camera intrinsic's file name needed to be input
-pose_graph = pose_graph.json                              # pose graph's file name needed to be input
+# Output file names
+pose_graph = pose_graph.json                              # pose graph's file name
 raw_mesh_filename = offline_raw_mesh.ply                  #  raw mesh's file name
 point_cloud_filename = offline_point_cloud.ply            # point cloud's file name
 optimized_mesh_filename = offline_optimized_mesh.ply      # optimized mesh's file name

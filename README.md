@@ -1,3 +1,5 @@
+
+
 # forest scanner📸
 
 ------
@@ -11,8 +13,6 @@ This project is about 3D reconstruction, which contains two main parts. One is o
 Online version which has a strong connection with **Intel RealSense D415 depth camera** can process RGB images and depth images while collecting them, cost nearly no time to get a raw 3D mesh. If you want to improve the performance of the raw mesh, run `online_optimize_color_map.py` which will costs a few minutes.
 
 Offline version is designed for other cameras or datasets, which is flexible and light. User input merely RGB images, depth images and camera intrinsic, after few minutes, can get a optimized 3D mesh directly.
-
-
 
 
 
@@ -138,8 +138,6 @@ After installing all of these successfully, reboot your computer and the prepara
 
 
 
-
-
 ## 2.Online version
 
 ### 2.0.Test camera
@@ -256,8 +254,6 @@ Wait a few minutes, a new mesh named `online_optimized_mesh.ply` is created whic
 
 
 
-
-
 ## 3.Offline version
 
 Offline version is supposed to input dataset which contains color images and depth images.
@@ -334,7 +330,7 @@ optional arguments:
                         Camera intrinsic matrix
 ```
 
-By default, dataset folder is `$EXECUTE_PATH/dataset`, camera intrinsic is `$EXECUTE_PATH/camera_intrisic.json`.
+By default, dataset folder is `$EXECUTE_PATH/dataset`, camera intrinsic is `$EXECUTE_PATH/camera_intrinsic.json`.
 
 
 
@@ -349,8 +345,6 @@ Two files are created in **dataset folder**:
 
 - `offline_raw_mesh.ply`: 3D mesh without optimization.
 - `offline_oprimized_mesh.ply`: 3D mesh with optimization.
-
-
 
 
 
@@ -409,8 +403,6 @@ Length of the bounding box in x, y, and z dimension:  x=???, y=???, z=???
 Just have a try.🚀
 
 > Note: [Meshlab](http://www.meshlab.net/#download) is also a nice choice for visualizing mesh and point cloud.
-
-
 
 
 
